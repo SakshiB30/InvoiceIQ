@@ -2,21 +2,22 @@ package com.invoiceiq.InvoiceIQ.service;
 
 import com.invoiceiq.InvoiceIQ.entity.Invoice;
 import com.invoiceiq.InvoiceIQ.repository.InvoiceRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class InvoiceService {
 
     private final InvoiceRepository invoiceRepository;
 
-    public InvoiceService(InvoiceRepository invoiceRepository) {
-        this.invoiceRepository = invoiceRepository;
-    }
-
-    public Invoice createInvoice(Invoice invoice, String userId) {
+    public Invoice createInvoice(
+            Invoice invoice,
+            String userId
+    ) {
 
         invoice.setUserId(userId);
 
@@ -33,7 +34,10 @@ public class InvoiceService {
         return invoiceRepository.findByUserId(userId);
     }
 
-    public Invoice getInvoiceById(String invoiceId, String userId) {
+    public Invoice getInvoiceById(
+            String invoiceId,
+            String userId
+    ) {
 
         return invoiceRepository
                 .findByIdAndUserId(invoiceId, userId)
@@ -42,7 +46,10 @@ public class InvoiceService {
                 );
     }
 
-    public void deleteInvoice(String invoiceId, String userId) {
+    public void deleteInvoice(
+            String invoiceId,
+            String userId
+    ) {
 
         Invoice invoice = invoiceRepository
                 .findByIdAndUserId(invoiceId, userId)

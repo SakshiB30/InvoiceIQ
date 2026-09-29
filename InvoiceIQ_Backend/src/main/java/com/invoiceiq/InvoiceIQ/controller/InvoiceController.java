@@ -1,8 +1,11 @@
 package com.invoiceiq.InvoiceIQ.controller;
 
+import com.invoiceiq.InvoiceIQ.dto.InvoiceProcessingResponseDTO;
 import com.invoiceiq.InvoiceIQ.entity.Invoice;
+import com.invoiceiq.InvoiceIQ.entity.ValidationResult;
 import com.invoiceiq.InvoiceIQ.service.InvoiceProcessingService;
 import com.invoiceiq.InvoiceIQ.service.InvoiceService;
+import com.invoiceiq.InvoiceIQ.service.InvoiceValidationService;
 import com.invoiceiq.InvoiceIQ.util.SecurityUtil;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,17 +23,20 @@ public class InvoiceController {
     private final SecurityUtil securityUtil;
     private final InvoiceProcessingService invoiceProcessingService;
     private final AIExtractionService aiExtractionService;
+    private final InvoiceValidationService invoiceValidationService;
 
     public InvoiceController(
             InvoiceService invoiceService,
             SecurityUtil securityUtil,
             InvoiceProcessingService invoiceProcessingService,
-            AIExtractionService aiExtractionService
+            AIExtractionService aiExtractionService,
+            InvoiceValidationService invoiceValidationService
     ) {
         this.invoiceService = invoiceService;
         this.securityUtil = securityUtil;
         this.invoiceProcessingService = invoiceProcessingService;
         this.aiExtractionService = aiExtractionService;
+        this.invoiceValidationService = invoiceValidationService;
     }
 
     @PostMapping
@@ -81,7 +87,7 @@ public class InvoiceController {
     }
 
     @PostMapping("/upload")
-    public ResponseEntity<ExtractedInvoiceDTO> uploadInvoice(
+    public ResponseEntity<InvoiceProcessingResponseDTO> uploadInvoice(
             @RequestParam("file") MultipartFile file
     ) {
 
@@ -105,10 +111,18 @@ public class InvoiceController {
 
         try {
 
-            ExtractedInvoiceDTO extractedInvoice =
-                    invoiceProcessingService.processInvoice(file);
+            // Get logged-in user's ID from JWT authentication
+            String userId =
+                    securityUtil.getCurrentUserId();
 
-            return ResponseEntity.ok(extractedInvoice);
+            // Process invoice
+            InvoiceProcessingResponseDTO response =
+                    invoiceProcessingService.processInvoice(
+                            file,
+                            userId
+                    );
+
+            return ResponseEntity.ok(response);
 
         } catch (Exception e) {
 
@@ -146,5 +160,16 @@ public class InvoiceController {
         System.out.println("========== SECURITY TEST CONTROLLER REACHED ==========");
 
         return ResponseEntity.ok("Security test successful");
+    }
+
+    @PostMapping("/validation-test")
+    public ResponseEntity<ValidationResult> testValidation(
+            @RequestBody ExtractedInvoiceDTO invoice
+    ) {
+
+        ValidationResult result =
+                invoiceValidationService.validate(invoice);
+
+        return ResponseEntity.ok(result);
     }
 }

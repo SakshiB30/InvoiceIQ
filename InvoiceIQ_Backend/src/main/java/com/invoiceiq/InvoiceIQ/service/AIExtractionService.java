@@ -1,32 +1,35 @@
 package com.invoiceiq.InvoiceIQ.service;
 
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
 import com.invoiceiq.InvoiceIQ.dto.ExtractedInvoiceDTO;
+import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 @Service
+@RequiredArgsConstructor
 public class AIExtractionService {
 
     private final ObjectMapper objectMapper;
-    private final RestClient restClient;
-    private final String model;
 
-    public AIExtractionService(
-            ObjectMapper objectMapper,
-            @Value("${gemini.api.key}") String apiKey,
-            @Value("${gemini.model}") String model
-    ) {
+    @Value("${gemini.api.key}")
+    private String apiKey;
 
-        this.objectMapper = objectMapper;
-        this.model = model;
+    @Value("${gemini.model}")
+    private String model;
+
+    private RestClient restClient;
+
+    @PostConstruct
+    public void initializeRestClient() {
 
         this.restClient = RestClient.builder()
                 .baseUrl("https://generativelanguage.googleapis.com")

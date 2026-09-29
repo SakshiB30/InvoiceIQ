@@ -6,7 +6,7 @@ InvoiceIQ_Backend/uploads/
 
 # Backend local secrets
 InvoiceIQ_Backend/.env
-InvoiceIQ_Backend/application-local.properties
+InvoiceIQ_Backend/src/main/resources/application.properties
 
 # =========================
 # Frontend - React

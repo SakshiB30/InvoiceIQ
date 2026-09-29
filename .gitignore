@@ -1,0 +1,30 @@
+# =========================
+# Backend - Spring Boot
+# =========================
+InvoiceIQ_Backend/target/
+InvoiceIQ_Backend/uploads/
+
+# Backend local secrets
+InvoiceIQ_Backend/.env
+InvoiceIQ_Backend/application-local.properties
+
+# =========================
+# Frontend - React
+# =========================
+InvoiceIQ_Frontend/node_modules/
+InvoiceIQ_Frontend/dist/
+InvoiceIQ_Frontend/.env
+InvoiceIQ_Frontend/.env.local
+
+# =========================
+# IntelliJ / VS Code
+# =========================
+.idea/
+*.iml
+.vscode/
+
+# =========================
+# OS
+# =========================
+.DS_Store
+Thumbs.db

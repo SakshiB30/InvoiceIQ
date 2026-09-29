@@ -1,0 +1,150 @@
+package com.invoiceiq.InvoiceIQ.controller;
+
+import com.invoiceiq.InvoiceIQ.entity.Invoice;
+import com.invoiceiq.InvoiceIQ.service.InvoiceProcessingService;
+import com.invoiceiq.InvoiceIQ.service.InvoiceService;
+import com.invoiceiq.InvoiceIQ.util.SecurityUtil;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import com.invoiceiq.InvoiceIQ.dto.ExtractedInvoiceDTO;
+import com.invoiceiq.InvoiceIQ.service.AIExtractionService;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/invoices")
+public class InvoiceController {
+
+    private final InvoiceService invoiceService;
+    private final SecurityUtil securityUtil;
+    private final InvoiceProcessingService invoiceProcessingService;
+    private final AIExtractionService aiExtractionService;
+
+    public InvoiceController(
+            InvoiceService invoiceService,
+            SecurityUtil securityUtil,
+            InvoiceProcessingService invoiceProcessingService,
+            AIExtractionService aiExtractionService
+    ) {
+        this.invoiceService = invoiceService;
+        this.securityUtil = securityUtil;
+        this.invoiceProcessingService = invoiceProcessingService;
+        this.aiExtractionService = aiExtractionService;
+    }
+
+    @PostMapping
+    public ResponseEntity<Invoice> createInvoice(
+            @RequestBody Invoice invoice
+    ) {
+
+        String userId = securityUtil.getCurrentUserId();
+
+        Invoice savedInvoice =
+                invoiceService.createInvoice(invoice, userId);
+
+        return ResponseEntity.ok(savedInvoice);
+    }
+
+    @GetMapping
+    public ResponseEntity<List<Invoice>> getInvoices() {
+
+        String userId = securityUtil.getCurrentUserId();
+
+        return ResponseEntity.ok(
+                invoiceService.getUserInvoices(userId)
+        );
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Invoice> getInvoice(
+            @PathVariable String id
+    ) {
+
+        String userId = securityUtil.getCurrentUserId();
+
+        return ResponseEntity.ok(
+                invoiceService.getInvoiceById(id, userId)
+        );
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<String> deleteInvoice(
+            @PathVariable String id
+    ) {
+
+        String userId = securityUtil.getCurrentUserId();
+
+        invoiceService.deleteInvoice(id, userId);
+
+        return ResponseEntity.ok("Invoice deleted successfully");
+    }
+
+    @PostMapping("/upload")
+    public ResponseEntity<ExtractedInvoiceDTO> uploadInvoice(
+            @RequestParam("file") MultipartFile file
+    ) {
+
+        if (file.isEmpty()) {
+            return ResponseEntity
+                    .badRequest()
+                    .build();
+        }
+
+        String contentType = file.getContentType();
+
+        if (contentType == null ||
+                (!contentType.equals("application/pdf")
+                        && !contentType.equals("image/jpeg")
+                        && !contentType.equals("image/png"))) {
+
+            return ResponseEntity
+                    .badRequest()
+                    .build();
+        }
+
+        try {
+
+            ExtractedInvoiceDTO extractedInvoice =
+                    invoiceProcessingService.processInvoice(file);
+
+            return ResponseEntity.ok(extractedInvoice);
+
+        } catch (Exception e) {
+
+            e.printStackTrace();
+
+            return ResponseEntity
+                    .internalServerError()
+                    .build();
+        }
+    }
+
+    @PostMapping("/ai-test")
+    public ResponseEntity<ExtractedInvoiceDTO> testAIExtraction(
+            @RequestBody String rawText
+    ) {
+        System.out.println("========== AI TEST ENDPOINT CALLED ==========");
+
+        System.out.println("RAW TEXT:");
+        System.out.println(rawText);
+
+        ExtractedInvoiceDTO result =
+                aiExtractionService.extractInvoiceData(rawText);
+
+        System.out.println("AI TEST RESULT:");
+        System.out.println(result);
+
+        System.out.println("========== AI TEST ENDPOINT FINISHED ==========");
+
+        return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/security-test")
+    public ResponseEntity<String> securityTest() {
+
+        System.out.println("========== SECURITY TEST CONTROLLER REACHED ==========");
+
+        return ResponseEntity.ok("Security test successful");
+    }
+}

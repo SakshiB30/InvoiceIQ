@@ -13,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.invoiceiq.InvoiceIQ.dto.ExtractedInvoiceDTO;
 import com.invoiceiq.InvoiceIQ.service.AIExtractionService;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -53,12 +54,24 @@ public class InvoiceController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Invoice>> getInvoices() {
+    public ResponseEntity<List<Invoice>> getInvoices(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) LocalDate fromDate,
+            @RequestParam(required = false) LocalDate toDate
+    ) {
 
-        String userId = securityUtil.getCurrentUserId();
+        String userId =
+                securityUtil.getCurrentUserId();
 
         return ResponseEntity.ok(
-                invoiceService.getUserInvoices(userId)
+                invoiceService.getUserInvoices(
+                        userId,
+                        search,
+                        category,
+                        fromDate,
+                        toDate
+                )
         );
     }
 
@@ -171,5 +184,22 @@ public class InvoiceController {
                 invoiceValidationService.validate(invoice);
 
         return ResponseEntity.ok(result);
+    }
+
+    @PutMapping("/{id}/confirm")
+    public ResponseEntity<Invoice> confirmInvoice(
+            @PathVariable String id
+    ) {
+
+        String userId =
+                securityUtil.getCurrentUserId();
+
+        Invoice confirmedInvoice =
+                invoiceService.confirmInvoice(
+                        id,
+                        userId
+                );
+
+        return ResponseEntity.ok(confirmedInvoice);
     }
 }

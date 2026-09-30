@@ -21,6 +21,8 @@ public class InvoiceProcessingService {
     private final InvoiceValidationService invoiceValidationService;
     private final InvoiceMapperService invoiceMapperService;
     private final DuplicateDetectionService duplicateDetectionService;
+    private final InvoiceService invoiceService;
+    private final CategorizationService categorizationService;
 
     public InvoiceProcessingResponseDTO processInvoice(
             MultipartFile file,
@@ -56,27 +58,60 @@ public class InvoiceProcessingService {
                             userId
                     );
 
-            // Step 6: Check for duplicate invoice
+            // Step 6: Set initial processing status
+            invoice.setProcessingStatus("REVIEW_REQUIRED");
+
+            // Step 7: Categorize invoice
+            String category =
+                    categorizationService.categorize(invoice);
+
+            invoice.setCategory(category);
+
+            // Step 8: Attach validation result
+            invoice.setValidation(validationResult);
+
+            // Step 9: Check for duplicate invoice
             DuplicateResult duplicateResult =
                     duplicateDetectionService.checkDuplicate(
                             invoice,
                             userId
                     );
 
-            // Step 7: Attach duplicate result
+            // Step 10: Attach duplicate result
             invoice.setDuplicate(duplicateResult);
 
             System.out.println(
-                    "========== DUPLICATE CHECK =========="
+                    "========== INVOICE CATEGORY =========="
             );
-
-            System.out.println(duplicateResult);
 
             System.out.println(
-                    "====================================="
+                    "Category: " + category
             );
 
-            // Step 8: Return extracted data,
+            System.out.println(
+                    "======================================"
+            );
+
+            // Step 11: Save invoice to MongoDB
+            Invoice savedInvoice =
+                    invoiceService.createInvoice(
+                            invoice,
+                            userId
+                    );
+
+            System.out.println(
+                    "========== INVOICE SAVED =========="
+            );
+
+            System.out.println(
+                    "Invoice ID: " + savedInvoice.getId()
+            );
+
+            System.out.println(
+                    "==================================="
+            );
+
+            // Step 12: Return extracted data,
             // validation result and duplicate result
             return new InvoiceProcessingResponseDTO(
                     extractedInvoice,

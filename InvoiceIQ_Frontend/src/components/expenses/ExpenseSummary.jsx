@@ -5,95 +5,100 @@ function formatAmount(amount) {
     style: 'currency',
     currency: 'INR',
     maximumFractionDigits: 2,
-  }).format(amount)
+  }).format(amount || 0)
 }
 
 function ExpenseSummary() {
-  const { invoices, loading } = useSelector(
-    (state) => state.invoices,
+  const {
+    expenses,
+    loading,
+  } = useSelector(
+    (state) => state.expenses,
   )
 
-  const totalExpenses = invoices.reduce(
-    (total, invoice) =>
-      total + (Number(invoice.totalAmount) || 0),
+  const totalExpenses = expenses.reduce(
+    (total, expense) =>
+      total +
+      (Number(expense.totalAmount) || 0),
     0,
   )
 
-  const now = new Date()
+  const transactionCount = expenses.length
 
-  const thisMonthExpenses = invoices
-    .filter((invoice) => {
-      if (!invoice.invoiceDate) {
-        return false
-      }
+  const averageExpense =
+    transactionCount > 0
+      ? totalExpenses / transactionCount
+      : 0
 
-      const invoiceDate = new Date(invoice.invoiceDate)
+  const categoryTotals =
+    expenses.reduce(
+      (categories, expense) => {
+        const category =
+          expense.category || 'Other'
 
-      return (
-        invoiceDate.getMonth() === now.getMonth() &&
-        invoiceDate.getFullYear() === now.getFullYear()
-      )
-    })
-    .reduce(
-      (total, invoice) =>
-        total + (Number(invoice.totalAmount) || 0),
-      0,
+        const amount =
+          Number(expense.totalAmount) || 0
+
+        categories[category] =
+          (categories[category] || 0) +
+          amount
+
+        return categories
+      },
+      {},
     )
 
-  const categoryTotals = invoices.reduce(
-    (categories, invoice) => {
-      const category = invoice.category || 'Other'
-      const amount = Number(invoice.totalAmount) || 0
+  const highestCategory =
+    Object.entries(categoryTotals).sort(
+      (a, b) => b[1] - a[1],
+    )[0]
 
-      categories[category] =
-        (categories[category] || 0) + amount
+  const highestCategoryName =
+    highestCategory?.[0] || '—'
 
-      return categories
-    },
-    {},
-  )
-
-  const highestCategory = Object.entries(categoryTotals).sort(
-    (a, b) => b[1] - a[1],
-  )[0]
-
-  const highestCategoryName = highestCategory
-    ? highestCategory[0]
-    : '—'
-
-  const highestCategoryAmount = highestCategory
-    ? highestCategory[1]
-    : 0
+  const highestCategoryAmount =
+    highestCategory?.[1] || 0
 
   const summary = [
     {
       title: 'Total Expenses',
-      value: loading ? '—' : formatAmount(totalExpenses),
-      description: 'All recorded expenses',
+      value: loading
+        ? '—'
+        : formatAmount(totalExpenses),
+      description:
+        'Based on current filters',
       icon: '💰',
     },
     {
-      title: 'This Month',
+      title: 'Average Expense',
       value: loading
         ? '—'
-        : formatAmount(thisMonthExpenses),
-      description: 'Expenses this month',
-      icon: '📅',
+        : formatAmount(averageExpense),
+      description:
+        'Average per transaction',
+      icon: '📊',
     },
     {
       title: 'Highest Category',
-      value: loading ? '—' : highestCategoryName,
+      value: loading
+        ? '—'
+        : highestCategoryName,
       description: loading
         ? 'Calculating...'
         : highestCategory
-          ? `${formatAmount(highestCategoryAmount)} spent`
+          ? `${formatAmount(
+              highestCategoryAmount,
+            )} spent`
           : 'No expenses recorded',
       icon: '📦',
     },
     {
       title: 'Transactions',
-      value: loading ? '—' : invoices.length,
-      description: 'Total transactions',
+      value: loading
+        ? '—'
+        : transactionCount,
+      description:
+        'Matching transactions',
       icon: '🧾',
     },
   ]

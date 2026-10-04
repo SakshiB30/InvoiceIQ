@@ -1,4 +1,6 @@
+import { useNavigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
+
 import ExpenseCategoryBadge from './ExpenseCategoryBadge'
 
 function formatDate(date) {
@@ -12,11 +14,14 @@ function formatDate(date) {
     return date
   }
 
-  return parsedDate.toLocaleDateString('en-IN', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  })
+  return parsedDate.toLocaleDateString(
+    'en-IN',
+    {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    },
+  )
 }
 
 function formatAmount(amount) {
@@ -28,29 +33,40 @@ function formatAmount(amount) {
 }
 
 function ExpenseTable() {
+  const navigate = useNavigate()
+
   const {
-    invoices,
+    expenses,
     loading,
     error,
-  } = useSelector((state) => state.invoices)
+  } = useSelector(
+    (state) => state.expenses,
+  )
 
-  const expenses = [...invoices]
-    .sort((a, b) => {
+  const sortedExpenses = [...expenses].sort(
+    (a, b) => {
       const dateA = new Date(
-        a.createdAt || a.invoiceDate || 0,
+        a.invoiceDate ||
+          a.createdAt ||
+          0,
       )
 
       const dateB = new Date(
-        b.createdAt || b.invoiceDate || 0,
+        b.invoiceDate ||
+          b.createdAt ||
+          0,
       )
 
       return dateB - dateA
-    })
+    },
+  )
 
   if (loading) {
     return (
       <div className="rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-        <p className="text-sm text-slate-500">
+        <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-yellow-400" />
+
+        <p className="mt-3 text-sm text-slate-500">
           Loading expenses...
         </p>
       </div>
@@ -73,7 +89,7 @@ function ExpenseTable() {
     )
   }
 
-  if (expenses.length === 0) {
+  if (sortedExpenses.length === 0) {
     return (
       <div className="rounded-xl border border-slate-200 bg-white px-6 py-12 text-center shadow-sm">
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-2xl">
@@ -85,7 +101,7 @@ function ExpenseTable() {
         </h3>
 
         <p className="mt-1 text-sm text-slate-500">
-          Upload an invoice to start tracking expenses.
+          Try changing your filters or upload an invoice.
         </p>
       </div>
     )
@@ -93,7 +109,8 @@ function ExpenseTable() {
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      {/* Table Header */}
+
+      {/* Header */}
       <div className="border-b border-slate-200 p-6">
         <h2 className="text-lg font-semibold text-slate-900">
           Expense Transactions
@@ -140,53 +157,71 @@ function ExpenseTable() {
           </thead>
 
           <tbody>
-            {expenses.map((invoice) => (
-              <tr
-                key={invoice.id}
-                className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
-              >
-                <td className="px-6 py-4 font-medium text-slate-900">
-                  {invoice.invoiceNumber || '—'}
-                </td>
+            {sortedExpenses.map(
+              (expense) => (
+                <tr
+                  key={expense.id}
+                  className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
+                >
+                  <td className="px-6 py-4 font-medium text-slate-900">
+                    {expense.invoiceNumber ||
+                      '—'}
+                  </td>
 
-                <td className="px-6 py-4 text-slate-600">
-                  {invoice.vendor?.name ||
-                    invoice.vendorName ||
-                    'Unknown Vendor'}
-                </td>
+                  <td className="px-6 py-4 text-slate-600">
+                    {expense.vendor?.name ||
+                      expense.vendorName ||
+                      'Unknown Vendor'}
+                  </td>
 
-                <td className="px-6 py-4 text-slate-600">
-                  {invoice.items?.length
-                    ? `${invoice.items.length} item${
-                        invoice.items.length > 1 ? 's' : ''
-                      }`
-                    : 'Invoice expense'}
-                </td>
+                  <td className="px-6 py-4 text-slate-600">
+                    {expense.items?.length
+                      ? `${expense.items.length} item${
+                          expense.items.length >
+                          1
+                            ? 's'
+                            : ''
+                        }`
+                      : 'Invoice expense'}
+                  </td>
 
-                <td className="px-6 py-4">
-                  <ExpenseCategoryBadge
-                    category={invoice.category || 'Other'}
-                  />
-                </td>
+                  <td className="px-6 py-4">
+                    <ExpenseCategoryBadge
+                      category={
+                        expense.category ||
+                        'Other'
+                      }
+                    />
+                  </td>
 
-                <td className="px-6 py-4 text-slate-500">
-                  {formatDate(invoice.invoiceDate)}
-                </td>
+                  <td className="px-6 py-4 text-slate-500">
+                    {formatDate(
+                      expense.invoiceDate,
+                    )}
+                  </td>
 
-                <td className="px-6 py-4 font-medium text-slate-900">
-                  {formatAmount(invoice.totalAmount)}
-                </td>
+                  <td className="px-6 py-4 font-medium text-slate-900">
+                    {formatAmount(
+                      expense.totalAmount,
+                    )}
+                  </td>
 
-                <td className="px-6 py-4">
-                  <a
-                    href={`/invoices/${invoice.id}`}
-                    className="text-sm font-medium text-yellow-600 transition hover:text-yellow-700"
-                  >
-                    View
-                  </a>
-                </td>
-              </tr>
-            ))}
+                  <td className="px-6 py-4">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        navigate(
+                          `/invoices/${expense.id}`,
+                        )
+                      }
+                      className="text-sm font-medium text-yellow-600 transition hover:text-yellow-700"
+                    >
+                      View
+                    </button>
+                  </td>
+                </tr>
+              ),
+            )}
           </tbody>
         </table>
       </div>
@@ -194,8 +229,8 @@ function ExpenseTable() {
       {/* Footer */}
       <div className="border-t border-slate-200 px-6 py-4">
         <p className="text-sm text-slate-500">
-          Showing {expenses.length}{' '}
-          {expenses.length === 1
+          Showing {sortedExpenses.length}{' '}
+          {sortedExpenses.length === 1
             ? 'expense'
             : 'expenses'}
         </p>

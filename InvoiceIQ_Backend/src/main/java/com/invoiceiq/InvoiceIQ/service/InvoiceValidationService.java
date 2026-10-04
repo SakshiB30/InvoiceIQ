@@ -11,34 +11,72 @@ import java.util.List;
 @Service
 public class InvoiceValidationService {
 
+    private static final double TOLERANCE = 0.01;
+
     public ValidationResult validate(ExtractedInvoiceDTO invoice) {
 
-        List<String> missingFields = new ArrayList<>();
+        List<String> validationIssues = new ArrayList<>();
 
-        // 1. Check required fields
+        /*
+         * Safety check
+         */
+        if (invoice == null) {
+
+            validationIssues.add(
+                    "Invoice data is missing"
+            );
+
+            return new ValidationResult(
+                    false,
+                    false,
+                    0.0,
+                    0.0,
+                    validationIssues
+            );
+        }
+
+        /*
+         * =====================================================
+         * 1. REQUIRED FIELD VALIDATION
+         * =====================================================
+         */
 
         if (invoice.getVendorName() == null ||
                 invoice.getVendorName().isBlank()) {
 
-            missingFields.add("Vendor name");
+            validationIssues.add(
+                    "Vendor name is missing"
+            );
         }
 
         if (invoice.getInvoiceNumber() == null ||
                 invoice.getInvoiceNumber().isBlank()) {
 
-            missingFields.add("Invoice number");
+            validationIssues.add(
+                    "Invoice number is missing"
+            );
         }
 
         if (invoice.getInvoiceDate() == null) {
-            missingFields.add("Invoice date");
+
+            validationIssues.add(
+                    "Invoice date is missing"
+            );
         }
 
         if (invoice.getTotalAmount() == null) {
-            missingFields.add("Total amount");
+
+            validationIssues.add(
+                    "Total amount is missing"
+            );
         }
 
 
-        // 2. Calculate expected total
+        /*
+         * =====================================================
+         * 2. EXTRACT NUMERIC VALUES
+         * =====================================================
+         */
 
         double subtotal = invoice.getSubtotal() != null
                 ? invoice.getSubtotal()
@@ -52,20 +90,148 @@ public class InvoiceValidationService {
                 ? invoice.getTotalAmount()
                 : 0.0;
 
-        double expectedTotal = subtotal + tax;
+
+        /*
+         * =====================================================
+         * 3. NEGATIVE AMOUNT VALIDATION
+         * =====================================================
+         */
+
+        if (subtotal < 0) {
+
+            validationIssues.add(
+                    "Subtotal cannot be negative"
+            );
+        }
+
+        if (tax < 0) {
+
+            validationIssues.add(
+                    "Tax cannot be negative"
+            );
+        }
+
+        if (extractedTotal < 0) {
+
+            validationIssues.add(
+                    "Total amount cannot be negative"
+            );
+        }
 
 
-        // 3. Check total calculation
+        /*
+         * =====================================================
+         * 4. DATE VALIDATION
+         * =====================================================
+         */
+
+        if (invoice.getInvoiceDate() != null &&
+                invoice.getDueDate() != null) {
+
+            if (invoice.getDueDate()
+                    .isBefore(invoice.getInvoiceDate())) {
+
+                validationIssues.add(
+                        "Due date cannot be before invoice date"
+                );
+            }
+        }
+
+
+        /*
+         * =====================================================
+         * 5. TOTAL CALCULATION
+         * =====================================================
+         */
+
+        double expectedTotal =
+                subtotal + tax;
 
         boolean totalMismatch =
-                Math.abs(expectedTotal - extractedTotal) > 0.01;
+                Math.abs(
+                        expectedTotal - extractedTotal
+                ) > TOLERANCE;
+
+        if (totalMismatch) {
+
+            validationIssues.add(
+                    String.format(
+                            "Total mismatch: expected %.2f but extracted %.2f",
+                            expectedTotal,
+                            extractedTotal
+                    )
+            );
+        }
 
 
-        // 4. Check invoice items
+        /*
+         * =====================================================
+         * 6. ITEM VALIDATION
+         * =====================================================
+         */
 
         if (invoice.getItems() != null) {
 
-            for (ExtractedInvoiceItemDTO item : invoice.getItems()) {
+            for (int i = 0;
+                 i < invoice.getItems().size();
+                 i++) {
+
+                ExtractedInvoiceItemDTO item =
+                        invoice.getItems().get(i);
+
+                if (item == null) {
+
+                    validationIssues.add(
+                            "Invoice item " + (i + 1)
+                                    + " is invalid"
+                    );
+
+                    continue;
+                }
+
+                String itemName =
+                        item.getDescription() != null &&
+                                !item.getDescription().isBlank()
+                                ? item.getDescription()
+                                : "Item " + (i + 1);
+
+
+                /*
+                 * -------------------------------------------------
+                 * Item required fields
+                 * -------------------------------------------------
+                 */
+
+                if (item.getQuantity() == null) {
+
+                    validationIssues.add(
+                            "Quantity is missing for "
+                                    + itemName
+                    );
+                }
+
+                if (item.getUnitPrice() == null) {
+
+                    validationIssues.add(
+                            "Unit price is missing for "
+                                    + itemName
+                    );
+                }
+
+                if (item.getAmount() == null) {
+
+                    validationIssues.add(
+                            "Amount is missing for "
+                                    + itemName
+                    );
+                }
+
+
+                /*
+                 * -------------------------------------------------
+                 * Skip calculation if values are missing
+                 * -------------------------------------------------
+                 */
 
                 if (item.getQuantity() == null ||
                         item.getUnitPrice() == null ||
@@ -74,40 +240,113 @@ public class InvoiceValidationService {
                     continue;
                 }
 
+
+                double quantity =
+                        item.getQuantity();
+
+                double unitPrice =
+                        item.getUnitPrice();
+
+                double itemAmount =
+                        item.getAmount();
+
+
+                /*
+                 * -------------------------------------------------
+                 * Quantity validation
+                 * -------------------------------------------------
+                 */
+
+                if (quantity <= 0) {
+
+                    validationIssues.add(
+                            "Quantity must be greater than 0 for "
+                                    + itemName
+                    );
+                }
+
+
+                /*
+                 * -------------------------------------------------
+                 * Unit price validation
+                 * -------------------------------------------------
+                 */
+
+                if (unitPrice < 0) {
+
+                    validationIssues.add(
+                            "Unit price cannot be negative for "
+                                    + itemName
+                    );
+                }
+
+
+                /*
+                 * -------------------------------------------------
+                 * Item amount validation
+                 * -------------------------------------------------
+                 */
+
+                if (itemAmount < 0) {
+
+                    validationIssues.add(
+                            "Item amount cannot be negative for "
+                                    + itemName
+                    );
+                }
+
+
+                /*
+                 * -------------------------------------------------
+                 * Item calculation
+                 * -------------------------------------------------
+                 */
+
                 double expectedItemAmount =
-                        item.getQuantity() * item.getUnitPrice();
+                        quantity * unitPrice;
 
                 boolean itemMismatch =
                         Math.abs(
-                                expectedItemAmount - item.getAmount()
-                        ) > 0.01;
+                                expectedItemAmount - itemAmount
+                        ) > TOLERANCE;
 
                 if (itemMismatch) {
 
-                    missingFields.add(
-                            "Item amount mismatch: "
-                                    + item.getDescription()
+                    validationIssues.add(
+                            String.format(
+                                    "Item amount mismatch for %s: expected %.2f but extracted %.2f",
+                                    itemName,
+                                    expectedItemAmount,
+                                    itemAmount
+                            )
                     );
                 }
             }
         }
 
 
-        // 5. Determine overall validity
+        /*
+         * =====================================================
+         * 7. OVERALL VALIDATION
+         * =====================================================
+         */
 
         boolean valid =
-                missingFields.isEmpty()
-                        && !totalMismatch;
+                validationIssues.isEmpty();
 
 
-        // 6. Return validation result
+        /*
+         * =====================================================
+         * 8. RETURN VALIDATION RESULT
+         * =====================================================
+         */
 
         return new ValidationResult(
                 valid,
                 totalMismatch,
                 expectedTotal,
                 extractedTotal,
-                missingFields
+                validationIssues
         );
     }
 }

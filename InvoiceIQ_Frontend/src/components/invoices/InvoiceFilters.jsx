@@ -1,34 +1,147 @@
-function InvoiceFilters() {
+import { useEffect, useState } from 'react'
+
+function formatDate(date) {
+  const year = date.getFullYear()
+
+  const month = String(
+    date.getMonth() + 1,
+  ).padStart(2, '0')
+
+  const day = String(
+    date.getDate(),
+  ).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
+}
+
+function InvoiceFilters({ onFilterChange }) {
+  const [search, setSearch] = useState('')
+  const [category, setCategory] = useState('All')
+  const [dateFilter, setDateFilter] = useState('All')
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const today = new Date()
+
+      let fromDate = ''
+      let toDate = ''
+
+      if (dateFilter === 'Today') {
+        fromDate = formatDate(today)
+        toDate = formatDate(today)
+      }
+
+      if (dateFilter === 'This Week') {
+        const startOfWeek = new Date(today)
+        const day = startOfWeek.getDay()
+        const difference = day === 0 ? 6 : day - 1
+
+        startOfWeek.setDate(
+          startOfWeek.getDate() - difference,
+        )
+
+        fromDate = formatDate(startOfWeek)
+        toDate = formatDate(today)
+      }
+
+      if (dateFilter === 'This Month') {
+        const startOfMonth = new Date(
+          today.getFullYear(),
+          today.getMonth(),
+          1,
+        )
+
+        fromDate = formatDate(startOfMonth)
+        toDate = formatDate(today)
+      }
+
+      if (dateFilter === 'This Year') {
+        const startOfYear = new Date(
+          today.getFullYear(),
+          0,
+          1,
+        )
+
+        fromDate = formatDate(startOfYear)
+        toDate = formatDate(today)
+      }
+
+      onFilterChange({
+        search,
+        category:
+          category === 'All' ? '' : category,
+        fromDate,
+        toDate,
+      })
+    }, 400)
+
+    return () => clearTimeout(timer)
+  }, [
+    search,
+    category,
+    dateFilter,
+    onFilterChange,
+  ])
+
+  const handleClearFilters = () => {
+    setSearch('')
+    setCategory('All')
+    setDateFilter('All')
+  }
+
+  const hasFilters =
+    search.trim() !== '' ||
+    category !== 'All' ||
+    dateFilter !== 'All'
+
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+
         {/* Search */}
         <div className="md:col-span-2">
           <label className="mb-1 block text-sm font-medium text-slate-700">
             Search
           </label>
 
-          <input
-            type="text"
-            placeholder="Search by invoice or vendor..."
-            className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm outline-none transition placeholder:text-slate-400 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
-          />
+          <div className="relative">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+              🔎
+            </span>
+
+            <input
+              type="text"
+              value={search}
+              onChange={(event) =>
+                setSearch(event.target.value)
+              }
+              placeholder="Search invoice number or vendor..."
+              className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
+            />
+          </div>
         </div>
 
-        {/* Status */}
+        {/* Category */}
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">
-            Status
+            Category
           </label>
 
           <select
+            value={category}
+            onChange={(event) =>
+              setCategory(event.target.value)
+            }
             className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-600 outline-none transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
-            defaultValue="All"
           >
-            <option value="All">All Status</option>
-            <option value="Verified">Verified</option>
-            <option value="Pending">Pending</option>
-            <option value="Review">Review</option>
+            <option value="All">All Categories</option>
+            <option value="Inventory">Inventory</option>
+            <option value="Office">Office</option>
+            <option value="Travel">Travel</option>
+            <option value="Utilities">Utilities</option>
+            <option value="Marketing">Marketing</option>
+            <option value="Other">Other</option>
           </select>
         </div>
 
@@ -39,8 +152,11 @@ function InvoiceFilters() {
           </label>
 
           <select
+            value={dateFilter}
+            onChange={(event) =>
+              setDateFilter(event.target.value)
+            }
             className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-600 outline-none transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
-            defaultValue="All"
           >
             <option value="All">All Dates</option>
             <option value="Today">Today</option>
@@ -49,7 +165,21 @@ function InvoiceFilters() {
             <option value="This Year">This Year</option>
           </select>
         </div>
+
       </div>
+
+      {hasFilters && (
+        <div className="mt-4 flex justify-end border-t border-slate-100 pt-4">
+          <button
+            type="button"
+            onClick={handleClearFilters}
+            className="text-sm font-medium text-slate-500 transition hover:text-slate-900"
+          >
+            Clear Filters
+          </button>
+        </div>
+      )}
+
     </div>
   )
 }

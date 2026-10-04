@@ -1,15 +1,26 @@
-import './App.css'
-import DashboardLayout from './layouts/DashboardLayout.jsx'
-import AppRoutes from './routes/AppRoutes'
+import { useEffect } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
 import { BrowserRouter } from 'react-router-dom'
 
+import AppRoutes from './routes/AppRoutes'
+import { fetchCurrentUser } from './redux/slices/authSlice'
+
 function App() {
-  
-   return (
+  const dispatch = useDispatch()
+
+  const { token, user } = useSelector(
+    (state) => state.auth,
+  )
+
+  useEffect(() => {
+    if (token && !user) {
+      dispatch(fetchCurrentUser())
+    }
+  }, [token, user, dispatch])
+
+  return (
     <BrowserRouter>
-      <DashboardLayout>
-        <AppRoutes />
-      </DashboardLayout>
+      <AppRoutes />
     </BrowserRouter>
   )
 }

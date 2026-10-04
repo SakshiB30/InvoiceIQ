@@ -1,49 +1,96 @@
+import { useSelector } from 'react-redux'
 import ExpenseCategoryBadge from './ExpenseCategoryBadge'
 
-const expenses = [
-  {
-    id: 'EXP-001',
-    vendor: 'ABC Suppliers',
-    description: 'Raw materials purchase',
-    category: 'Inventory',
-    date: '28 Sep 2026',
-    amount: '₹12,500',
-  },
-  {
-    id: 'EXP-002',
-    vendor: 'Office Mart',
-    description: 'Office stationery',
-    category: 'Office',
-    date: '27 Sep 2026',
-    amount: '₹3,250',
-  },
-  {
-    id: 'EXP-003',
-    vendor: 'City Travels',
-    description: 'Business travel',
-    category: 'Travel',
-    date: '25 Sep 2026',
-    amount: '₹7,800',
-  },
-  {
-    id: 'EXP-004',
-    vendor: 'MSEB',
-    description: 'Electricity bill',
-    category: 'Utilities',
-    date: '23 Sep 2026',
-    amount: '₹5,400',
-  },
-  {
-    id: 'EXP-005',
-    vendor: 'Digital Ads',
-    description: 'Online advertising',
-    category: 'Marketing',
-    date: '20 Sep 2026',
-    amount: '₹9,500',
-  },
-]
+function formatDate(date) {
+  if (!date) {
+    return '—'
+  }
+
+  const parsedDate = new Date(date)
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return date
+  }
+
+  return parsedDate.toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  })
+}
+
+function formatAmount(amount) {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 2,
+  }).format(Number(amount) || 0)
+}
 
 function ExpenseTable() {
+  const {
+    invoices,
+    loading,
+    error,
+  } = useSelector((state) => state.invoices)
+
+  const expenses = [...invoices]
+    .sort((a, b) => {
+      const dateA = new Date(
+        a.createdAt || a.invoiceDate || 0,
+      )
+
+      const dateB = new Date(
+        b.createdAt || b.invoiceDate || 0,
+      )
+
+      return dateB - dateA
+    })
+
+  if (loading) {
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+        <p className="text-sm text-slate-500">
+          Loading expenses...
+        </p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center">
+        <p className="text-sm font-medium text-red-600">
+          Failed to load expenses.
+        </p>
+
+        <p className="mt-1 text-xs text-red-500">
+          {typeof error === 'string'
+            ? error
+            : 'Please try again.'}
+        </p>
+      </div>
+    )
+  }
+
+  if (expenses.length === 0) {
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white px-6 py-12 text-center shadow-sm">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-2xl">
+          💰
+        </div>
+
+        <h3 className="mt-4 text-sm font-semibold text-slate-900">
+          No expenses found
+        </h3>
+
+        <p className="mt-1 text-sm text-slate-500">
+          Upload an invoice to start tracking expenses.
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
       {/* Table Header */}
@@ -93,42 +140,50 @@ function ExpenseTable() {
           </thead>
 
           <tbody>
-            {expenses.map((expense) => (
+            {expenses.map((invoice) => (
               <tr
-                key={expense.id}
+                key={invoice.id}
                 className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
               >
                 <td className="px-6 py-4 font-medium text-slate-900">
-                  {expense.id}
+                  {invoice.invoiceNumber || '—'}
                 </td>
 
                 <td className="px-6 py-4 text-slate-600">
-                  {expense.vendor}
+                  {invoice.vendor?.name ||
+                    invoice.vendorName ||
+                    'Unknown Vendor'}
                 </td>
 
                 <td className="px-6 py-4 text-slate-600">
-                  {expense.description}
+                  {invoice.items?.length
+                    ? `${invoice.items.length} item${
+                        invoice.items.length > 1 ? 's' : ''
+                      }`
+                    : 'Invoice expense'}
                 </td>
 
                 <td className="px-6 py-4">
-                  <ExpenseCategoryBadge category={expense.category} />
+                  <ExpenseCategoryBadge
+                    category={invoice.category || 'Other'}
+                  />
                 </td>
 
                 <td className="px-6 py-4 text-slate-500">
-                  {expense.date}
+                  {formatDate(invoice.invoiceDate)}
                 </td>
 
                 <td className="px-6 py-4 font-medium text-slate-900">
-                  {expense.amount}
+                  {formatAmount(invoice.totalAmount)}
                 </td>
 
                 <td className="px-6 py-4">
-                  <button
-                    type="button"
+                  <a
+                    href={`/invoices/${invoice.id}`}
                     className="text-sm font-medium text-yellow-600 transition hover:text-yellow-700"
                   >
                     View
-                  </button>
+                  </a>
                 </td>
               </tr>
             ))}
@@ -136,41 +191,14 @@ function ExpenseTable() {
         </table>
       </div>
 
-      {/* Pagination */}
-      <div className="flex items-center justify-between border-t border-slate-200 px-6 py-4">
+      {/* Footer */}
+      <div className="border-t border-slate-200 px-6 py-4">
         <p className="text-sm text-slate-500">
-          Showing 1–5 of 128 expenses
+          Showing {expenses.length}{' '}
+          {expenses.length === 1
+            ? 'expense'
+            : 'expenses'}
         </p>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-500 hover:bg-slate-50"
-          >
-            Previous
-          </button>
-
-          <button
-            type="button"
-            className="rounded-lg bg-yellow-400 px-3 py-2 text-sm font-medium text-slate-900"
-          >
-            1
-          </button>
-
-          <button
-            type="button"
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
-          >
-            2
-          </button>
-
-          <button
-            type="button"
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
-          >
-            Next
-          </button>
-        </div>
       </div>
     </div>
   )

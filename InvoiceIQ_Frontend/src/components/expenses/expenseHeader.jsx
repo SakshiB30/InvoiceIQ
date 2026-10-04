@@ -1,4 +1,8 @@
+import { useNavigate } from 'react-router-dom'
+
 function ExpenseHeader() {
+  const navigate = useNavigate()
+
   return (
     <div className="flex items-center justify-between">
       <div>
@@ -13,7 +17,8 @@ function ExpenseHeader() {
 
       <button
         type="button"
-        className="rounded-lg bg-yellow-400 px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-yellow-500"
+        onClick={() => navigate('/invoices')}
+        className="rounded-lg bg-yellow-400 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-yellow-500"
       >
         + Add Expense
       </button>

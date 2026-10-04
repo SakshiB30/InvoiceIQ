@@ -1,18 +1,22 @@
 import AnalyticsHeader from '../components/analytics/AnalyticsHeader'
-import AnalyticsSummary from '../components/analytics/AnalyticsSummary'
-import ExpenseChart from '../components/analytics/ExpenseChart'
-import CategoryBreakdown from '../components/analytics/CategoryBreakdown'
+import AnalyticsStats from '../components/analytics/AnalyticsStats'
+import CategorySpending from '../components/analytics/CategorySpending'
+import MonthlySpending from '../components/analytics/MonthlySpending'
+import TopVendors from '../components/analytics/TopVendors'
 
 function Analytics() {
   return (
     <div className="space-y-6">
       <AnalyticsHeader />
-      <AnalyticsSummary />
+
+      <AnalyticsStats />
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <ExpenseChart />
-        <CategoryBreakdown />
+        <CategorySpending />
+        <MonthlySpending />
       </div>
+
+      <TopVendors />
     </div>
   )
 }

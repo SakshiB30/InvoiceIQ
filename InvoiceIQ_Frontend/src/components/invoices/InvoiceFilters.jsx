@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useSelector } from 'react-redux'
 
 function formatDate(date) {
   const year = date.getFullYear()
@@ -15,9 +16,21 @@ function formatDate(date) {
 }
 
 function InvoiceFilters({ onFilterChange }) {
-  const [search, setSearch] = useState('')
-  const [category, setCategory] = useState('All')
-  const [dateFilter, setDateFilter] = useState('All')
+  const reduxFilters = useSelector(
+    (state) => state.invoices.filters,
+  )
+
+  const [search, setSearch] = useState(
+    reduxFilters.search || '',
+  )
+
+  const [category, setCategory] = useState(
+    reduxFilters.category || 'All',
+  )
+
+  const [dateFilter, setDateFilter] = useState(
+    reduxFilters.dateFilter || 'All',
+  )
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -70,6 +83,7 @@ function InvoiceFilters({ onFilterChange }) {
         search,
         category:
           category === 'All' ? '' : category,
+        dateFilter,
         fromDate,
         toDate,
       })
@@ -135,13 +149,33 @@ function InvoiceFilters({ onFilterChange }) {
             }
             className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-600 outline-none transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
           >
-            <option value="All">All Categories</option>
-            <option value="Inventory">Inventory</option>
-            <option value="Office">Office</option>
-            <option value="Travel">Travel</option>
-            <option value="Utilities">Utilities</option>
-            <option value="Marketing">Marketing</option>
-            <option value="Other">Other</option>
+            <option value="All">
+              All Categories
+            </option>
+
+            <option value="Inventory">
+              Inventory
+            </option>
+
+            <option value="Office">
+              Office
+            </option>
+
+            <option value="Travel">
+              Travel
+            </option>
+
+            <option value="Utilities">
+              Utilities
+            </option>
+
+            <option value="Marketing">
+              Marketing
+            </option>
+
+            <option value="Other">
+              Other
+            </option>
           </select>
         </div>
 
@@ -158,11 +192,25 @@ function InvoiceFilters({ onFilterChange }) {
             }
             className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-600 outline-none transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
           >
-            <option value="All">All Dates</option>
-            <option value="Today">Today</option>
-            <option value="This Week">This Week</option>
-            <option value="This Month">This Month</option>
-            <option value="This Year">This Year</option>
+            <option value="All">
+              All Dates
+            </option>
+
+            <option value="Today">
+              Today
+            </option>
+
+            <option value="This Week">
+              This Week
+            </option>
+
+            <option value="This Month">
+              This Month
+            </option>
+
+            <option value="This Year">
+              This Year
+            </option>
           </select>
         </div>
 

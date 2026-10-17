@@ -351,25 +351,32 @@ public class InvoiceController {
     }
 
 
+
     @PutMapping("/{id}/confirm")
-    public ResponseEntity<Invoice> confirmInvoice(
+    public ResponseEntity<?> confirmInvoice(
             @PathVariable String id
     ) {
         String userId =
                 securityUtil.getCurrentUserId();
 
+        try {
+            Invoice confirmedInvoice =
+                    invoiceService.confirmInvoice(
+                            id,
+                            userId
+                    );
 
-        Invoice confirmedInvoice =
-                invoiceService.confirmInvoice(
-                        id,
-                        userId
-                );
+            return ResponseEntity.ok(
+                    confirmedInvoice
+            );
 
-
-        return ResponseEntity.ok(
-                confirmedInvoice
-        );
+        } catch (IllegalStateException e) {
+            return ResponseEntity
+                    .badRequest()
+                    .body(e.getMessage());
+        }
     }
+
 
 
     @GetMapping("/ai-insights")
@@ -399,4 +406,6 @@ public class InvoiceController {
                 insights
         );
     }
+
+
 }

@@ -116,9 +116,18 @@ public class AIExtractionService {
             String jsonText =
                     extractResponseText(responseNode);
 
+            JsonNode invoiceJson = objectMapper.readTree(jsonText);
+
+            if (invoiceJson instanceof
+                    tools.jackson.databind.node.ObjectNode invoiceObject) {
+
+                normalizeDateField(invoiceObject, "invoiceDate");
+                normalizeDateField(invoiceObject, "dueDate");
+            }
+
             ExtractedInvoiceDTO result =
-                    objectMapper.readValue(
-                            jsonText,
+                    objectMapper.treeToValue(
+                            invoiceJson,
                             ExtractedInvoiceDTO.class
                     );
 
@@ -175,6 +184,35 @@ public class AIExtractionService {
         );
     }
 
+    private void normalizeDateField(
+            tools.jackson.databind.node.ObjectNode invoice,
+            String fieldName
+    ) {
+        JsonNode dateNode = invoice.get(fieldName);
+
+        if (dateNode == null || dateNode.isNull()) {
+            invoice.putNull(fieldName);
+            return;
+        }
+
+        String dateValue = dateNode.asText().trim();
+
+        if (dateValue.isEmpty()
+                || dateValue.equalsIgnoreCase("null")
+                || dateValue.equalsIgnoreCase("n/a")
+                || dateValue.equalsIgnoreCase("not available")) {
+
+            invoice.putNull(fieldName);
+            return;
+        }
+
+        try {
+            java.time.LocalDate.parse(dateValue);
+        } catch (java.time.format.DateTimeParseException e) {
+            invoice.putNull(fieldName);
+        }
+    }
+      
     private Map<String, Object> createInvoiceSchema() {
 
         Map<String, Object> schema =

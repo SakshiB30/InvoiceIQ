@@ -1,5 +1,6 @@
 import { useCallback, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
+import { useNavigate } from 'react-router-dom'
 
 import InvoiceHeader from '../components/invoices/InvoiceHeader'
 import InvoiceFilters from '../components/invoices/InvoiceFilters'
@@ -14,7 +15,8 @@ import {
 
 function Invoices() {
   const dispatch = useDispatch()
-
+  const navigate = useNavigate()
+  
   const {
     filters,
     invoices,
@@ -112,34 +114,30 @@ function Invoices() {
   // UPLOAD SUCCESS
   // ==========================================
 
-  const handleUploadSuccess = useCallback(() => {
-    /*
-     * A new invoice was uploaded.
-     *
-     * Refresh the list from page 1.
-     */
+  const handleUploadSuccess = useCallback(
+  (processingResult) => {
+    const invoiceId = processingResult?.savedInvoiceId
+
+    if (invoiceId) {
+      navigate(`/invoices/${invoiceId}`)
+      return
+    }
+
+    // Fallback if the response doesn't contain an ID.
     dispatch(setPage(1))
 
     loadInvoices({
-      search:
-        filters.search || undefined,
-
+      search: filters.search || undefined,
       category:
         filters.category !== 'All'
           ? filters.category
           : undefined,
-
-      fromDate:
-        filters.fromDate || undefined,
-
-      toDate:
-        filters.toDate || undefined,
+      fromDate: filters.fromDate || undefined,
+      toDate: filters.toDate || undefined,
     })
-  }, [
-    dispatch,
-    loadInvoices,
-    filters,
-  ])
+  },
+  [dispatch, filters, loadInvoices, navigate],
+)
 
   return (
     <div className="space-y-6">

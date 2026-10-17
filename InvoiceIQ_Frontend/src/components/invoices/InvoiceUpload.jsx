@@ -6,6 +6,48 @@ import {
   uploadInvoice,
 } from '../../redux/slices/invoiceSlice'
 
+// Convert backend and Redux errors into readable messages.
+const getReadableUploadError = (error) => {
+  if (typeof error === 'string' && error.trim()) {
+    return error
+  }
+
+  if (!error || typeof error !== 'object') {
+    return 'Something went wrong while processing the invoice. Please try again.'
+  }
+
+  const data = error.response?.data ?? error
+
+  if (typeof data === 'string' && data.trim()) {
+    return data
+  }
+
+  if (typeof data === 'object' && data !== null) {
+    const message =
+      data.message ??
+      data.error ??
+      data.detail ??
+      data.details ??
+      data.title
+
+    if (typeof message === 'string' && message.trim()) {
+      return message
+    }
+
+    if (Array.isArray(data.errors) && data.errors.length > 0) {
+      return data.errors
+        .map((item) =>
+          typeof item === 'string'
+            ? item
+            : item?.message ?? JSON.stringify(item),
+        )
+        .join('; ')
+    }
+  }
+
+  return 'Invoice processing failed. Please try again.'
+}
+
 function InvoiceUpload({ onUploadSuccess }) {
   const dispatch = useDispatch()
   const fileInputRef = useRef(null)
@@ -39,6 +81,10 @@ function InvoiceUpload({ onUploadSuccess }) {
     if (!allowedTypes.includes(file.type)) {
       setSelectedFile(null)
 
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+
       setFileError(
         'Invalid file type. Please upload a PDF, JPG, or PNG file.',
       )
@@ -48,6 +94,10 @@ function InvoiceUpload({ onUploadSuccess }) {
 
     if (file.size > MAX_FILE_SIZE) {
       setSelectedFile(null)
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
 
       setFileError(
         'File is too large. Please upload an invoice smaller than 10 MB.',
@@ -61,7 +111,6 @@ function InvoiceUpload({ onUploadSuccess }) {
 
   const handleInputChange = (event) => {
     const file = event.target.files?.[0]
-
     handleFile(file)
   }
 
@@ -74,7 +123,6 @@ function InvoiceUpload({ onUploadSuccess }) {
     }
 
     const file = event.dataTransfer.files?.[0]
-
     handleFile(file)
   }
 
@@ -110,7 +158,7 @@ function InvoiceUpload({ onUploadSuccess }) {
         fileInputRef.current.value = ''
       }
 
-      onUploadSuccess?.()
+      onUploadSuccess?.(result.payload)
     }
   }
 
@@ -155,7 +203,6 @@ function InvoiceUpload({ onUploadSuccess }) {
 
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-
       {/* Header */}
       <div className="border-b border-slate-100 p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -195,7 +242,6 @@ function InvoiceUpload({ onUploadSuccess }) {
 
       {/* Upload Area */}
       <div className="p-6">
-
         <div
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
@@ -240,17 +286,14 @@ function InvoiceUpload({ onUploadSuccess }) {
               </p>
 
               <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-                <span className="rounded-md bg-white px-3 py-1 text-xs font-medium text-slate-600 shadow-sm ring-1 ring-slate-200">
-                  PDF
-                </span>
-
-                <span className="rounded-md bg-white px-3 py-1 text-xs font-medium text-slate-600 shadow-sm ring-1 ring-slate-200">
-                  JPG
-                </span>
-
-                <span className="rounded-md bg-white px-3 py-1 text-xs font-medium text-slate-600 shadow-sm ring-1 ring-slate-200">
-                  PNG
-                </span>
+                {['PDF', 'JPG', 'PNG'].map((format) => (
+                  <span
+                    key={format}
+                    className="rounded-md bg-white px-3 py-1 text-xs font-medium text-slate-600 shadow-sm ring-1 ring-slate-200"
+                  >
+                    {format}
+                  </span>
+                ))}
 
                 <span className="text-xs text-slate-400">
                   Up to 10 MB
@@ -273,7 +316,6 @@ function InvoiceUpload({ onUploadSuccess }) {
         {selectedFile && !uploadLoading && (
           <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-
               <div className="flex min-w-0 items-center gap-3">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-yellow-100 text-xl">
                   {getFileIcon()}
@@ -291,9 +333,7 @@ function InvoiceUpload({ onUploadSuccess }) {
 
                     <span>•</span>
 
-                    <span>
-                      {getFileTypeLabel()}
-                    </span>
+                    <span>{getFileTypeLabel()}</span>
 
                     <span className="font-medium text-green-600">
                       • Ready
@@ -315,7 +355,10 @@ function InvoiceUpload({ onUploadSuccess }) {
 
         {/* File Error */}
         {fileError && (
-          <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4">
+          <div
+            role="alert"
+            className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4"
+          >
             <div className="flex items-start gap-3">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-100 text-sm">
                 ⚠️
@@ -336,25 +379,28 @@ function InvoiceUpload({ onUploadSuccess }) {
 
         {/* Backend Error */}
         {uploadError && !uploadLoading && (
-          <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4">
+          <div
+            role="alert"
+            className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4"
+          >
             <div className="flex items-start gap-3">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-100 text-sm">
                 ⚠️
               </div>
 
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-red-700">
                   Invoice processing failed
                 </p>
 
-                <p className="mt-1 text-xs leading-5 text-red-600">
-                  {typeof uploadError === 'string'
-                    ? uploadError
-                    : 'Something went wrong while processing the invoice. Please try again.'}
+                <p className="mt-1 break-words text-xs leading-5 text-red-600">
+                  {getReadableUploadError(uploadError)}
                 </p>
 
                 <p className="mt-2 text-xs text-red-500">
-                  You can select the invoice again and retry.
+                  Your upload may not have been saved. Check the
+                  invoice list before retrying to avoid creating
+                  a duplicate.
                 </p>
               </div>
             </div>
@@ -364,7 +410,6 @@ function InvoiceUpload({ onUploadSuccess }) {
         {/* AI Processing */}
         {uploadLoading && (
           <div className="mt-5 overflow-hidden rounded-2xl border border-yellow-200 bg-yellow-50">
-
             <div className="p-5">
               <div className="flex items-start gap-4">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-yellow-100">
@@ -397,8 +442,7 @@ function InvoiceUpload({ onUploadSuccess }) {
               </p>
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
-
-                {/* Step 1 */}
+                {/* Upload */}
                 <div className="rounded-xl border border-green-200 bg-green-50 p-3">
                   <div className="flex items-center gap-2">
                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-green-100 text-xs font-bold text-green-700">
@@ -417,7 +461,7 @@ function InvoiceUpload({ onUploadSuccess }) {
                   </div>
                 </div>
 
-                {/* Step 2 */}
+                {/* AI Extraction */}
                 <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-3">
                   <div className="flex items-center gap-2">
                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-yellow-100 text-xs font-bold text-yellow-700">
@@ -436,7 +480,7 @@ function InvoiceUpload({ onUploadSuccess }) {
                   </div>
                 </div>
 
-                {/* Step 3 */}
+                {/* Validation */}
                 <div className="rounded-xl border border-slate-200 bg-white p-3">
                   <div className="flex items-center gap-2">
                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-medium text-slate-400">
@@ -455,7 +499,7 @@ function InvoiceUpload({ onUploadSuccess }) {
                   </div>
                 </div>
 
-                {/* Step 4 */}
+                {/* Duplicate Check */}
                 <div className="rounded-xl border border-slate-200 bg-white p-3">
                   <div className="flex items-center gap-2">
                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-medium text-slate-400">
@@ -473,7 +517,6 @@ function InvoiceUpload({ onUploadSuccess }) {
                     </div>
                   </div>
                 </div>
-
               </div>
             </div>
           </div>
@@ -495,10 +538,8 @@ function InvoiceUpload({ onUploadSuccess }) {
         {/* Success */}
         {processingResult && !uploadLoading && (
           <div className="mt-5 overflow-hidden rounded-2xl border border-green-200 bg-green-50">
-
             <div className="p-5">
               <div className="flex items-start gap-3">
-
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-100 text-base font-bold text-green-700">
                   ✓
                 </div>
@@ -518,7 +559,6 @@ function InvoiceUpload({ onUploadSuccess }) {
 
               {/* Processing Results */}
               <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-
                 {processingResult.validation && (
                   <div className="rounded-xl border border-green-200 bg-white/70 p-3">
                     <div className="flex items-center gap-2">
@@ -554,7 +594,7 @@ function InvoiceUpload({ onUploadSuccess }) {
                         </p>
 
                         <p className="mt-0.5 text-[11px] text-green-600">
-                          {processingResult.duplicate?.isDuplicate
+                          {processingResult.duplicate.potentialDuplicate
                             ? 'Possible duplicate found'
                             : 'No duplicate detected'}
                         </p>
@@ -562,11 +602,10 @@ function InvoiceUpload({ onUploadSuccess }) {
                     </div>
                   </div>
                 )}
-
               </div>
 
               {/* Duplicate Warning */}
-              {processingResult.duplicate?.isDuplicate === true && (
+              {processingResult.duplicate?.potentialDuplicate === true && (
                 <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4">
                   <div className="flex items-start gap-3">
                     <span className="text-base">⚠️</span>
@@ -596,16 +635,21 @@ function InvoiceUpload({ onUploadSuccess }) {
                         Validation requires review
                       </p>
 
-                      {processingResult.validation.message && (
-                        <p className="mt-1 text-xs leading-5 text-orange-600">
-                          {processingResult.validation.message}
-                        </p>
+                      {processingResult.validation.missingFields?.length > 0 && (
+                        <ul className="mt-2 list-disc space-y-1 pl-5 text-xs leading-5 text-orange-600">
+                          {processingResult.validation.missingFields.map(
+                            (issue, index) => (
+                              <li key={`${issue}-${index}`}>
+                                {issue}
+                              </li>
+                            ),
+                          )}
+                        </ul>
                       )}
                     </div>
                   </div>
                 </div>
               )}
-
             </div>
 
             {/* Success Footer */}
@@ -615,10 +659,8 @@ function InvoiceUpload({ onUploadSuccess }) {
                 confirming the invoice.
               </p>
             </div>
-
           </div>
         )}
-
       </div>
     </div>
   )

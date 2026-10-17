@@ -400,12 +400,12 @@ const InvoiceDetails = ({
   ========================== */
 
   const handleOpenConfirm = () => {
-    if (!selectedInvoice?.validation) {
-      return
-    }
-
-    setShowConfirmDialog(true)
+  if (selectedInvoice?.validation?.valid !== true) {
+    return
   }
+
+  setShowConfirmDialog(true)
+}
 
   const handleConfirm = async () => {
     setConfirmLoading(true)
@@ -509,7 +509,7 @@ const InvoiceDetails = ({
     selectedInvoice?.validation?.valid === true
 
   const canConfirm =
-    !isCompleted && hasValidation
+  !isCompleted && validationPassed
 
   /* =========================
      SOURCE DOCUMENT

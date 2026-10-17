@@ -22,7 +22,6 @@ public class InvoiceService {
 
     private final InvoiceValidationService invoiceValidationService;
 
-
     public Invoice createInvoice(
             Invoice invoice,
             String userId
@@ -390,6 +389,7 @@ public class InvoiceService {
     }
 
 
+
     public Invoice confirmInvoice(
             String invoiceId,
             String userId
@@ -406,21 +406,28 @@ public class InvoiceService {
                                 )
                         );
 
+        // Reject confirmation if validation has not passed.
+        ValidationResult validation = invoice.getValidation();
 
-        invoice.setProcessingStatus(
-                "COMPLETED"
-        );
+        if (validation == null || !validation.isValid()) {
+            throw new IllegalStateException(
+                    "Invoice cannot be confirmed until validation passes"
+            );
+        }
 
+        // Prevent unnecessary changes to an already completed invoice.
+        if ("COMPLETED".equalsIgnoreCase(invoice.getProcessingStatus())) {
+            throw new IllegalStateException(
+                    "Invoice is already completed"
+            );
+        }
 
-        invoice.setUpdatedAt(
-                LocalDateTime.now()
-        );
+        invoice.setProcessingStatus("COMPLETED");
+        invoice.setUpdatedAt(LocalDateTime.now());
 
-
-        return invoiceRepository.save(
-                invoice
-        );
+        return invoiceRepository.save(invoice);
     }
+
 
 
     public void deleteInvoice(

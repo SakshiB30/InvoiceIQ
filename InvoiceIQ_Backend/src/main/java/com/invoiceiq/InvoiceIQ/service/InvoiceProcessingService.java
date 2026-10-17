@@ -116,7 +116,8 @@ public class InvoiceProcessingService {
             return new InvoiceProcessingResponseDTO(
                     extractedInvoice,
                     validationResult,
-                    duplicateResult
+                    duplicateResult,
+                    savedInvoice.getId()
             );
 
         } catch (IOException e) {

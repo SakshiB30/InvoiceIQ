@@ -16,4 +16,6 @@ public class InvoiceProcessingResponseDTO {
     private ValidationResult validation;
 
     private DuplicateResult duplicate;
+
+    private String savedInvoiceId;
 }

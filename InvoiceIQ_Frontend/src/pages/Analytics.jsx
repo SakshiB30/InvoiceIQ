@@ -288,7 +288,7 @@ const Analytics = () => {
 
 if (error) {
   return (
-    <div className="flex min-h-[500px] items-center justify-center p-6">
+    <div className="flex min-h-125 items-center justify-center p-6">
       <div className="w-full max-w-md rounded-2xl border border-red-100 bg-white p-8 text-center shadow-sm">
         <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-red-50 text-2xl">
           ⚠️

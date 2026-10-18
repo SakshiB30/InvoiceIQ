@@ -8,6 +8,7 @@ import com.invoiceiq.InvoiceIQ.entity.ValidationResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import com.invoiceiq.InvoiceIQ.entity.SourceDocument;
 
 import java.io.IOException;
 
@@ -57,6 +58,15 @@ public class InvoiceProcessingService {
                             extractedInvoice,
                             userId
                     );
+
+            // Attach original document metadata
+            SourceDocument sourceDocument = new SourceDocument();
+
+            sourceDocument.setFileName(file.getOriginalFilename());
+            sourceDocument.setFileType(file.getContentType());
+            sourceDocument.setStorageUrl(filePath);
+
+            invoice.setSourceDocument(sourceDocument);
 
             // Step 6: Set initial processing status
             invoice.setProcessingStatus("REVIEW_REQUIRED");

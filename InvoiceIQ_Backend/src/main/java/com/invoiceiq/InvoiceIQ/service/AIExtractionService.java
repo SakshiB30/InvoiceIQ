@@ -212,7 +212,7 @@ public class AIExtractionService {
             invoice.putNull(fieldName);
         }
     }
-      
+
     private Map<String, Object> createInvoiceSchema() {
 
         Map<String, Object> schema =

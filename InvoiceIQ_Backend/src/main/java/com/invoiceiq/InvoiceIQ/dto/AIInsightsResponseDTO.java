@@ -21,9 +21,9 @@ public class AIInsightsResponseDTO {
 
     private String topVendor;
 
-    private double totalSpending;
+    private Double totalSpending;
 
-    private double monthlySpending;
+    private Double monthlySpending;
 
-    private int totalInvoices;
+    private Integer totalInvoices;
 }

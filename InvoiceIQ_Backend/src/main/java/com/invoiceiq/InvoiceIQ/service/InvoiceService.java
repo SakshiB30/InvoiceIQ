@@ -4,7 +4,9 @@ import com.invoiceiq.InvoiceIQ.dto.ExtractedInvoiceDTO;
 import com.invoiceiq.InvoiceIQ.dto.ExtractedInvoiceItemDTO;
 import com.invoiceiq.InvoiceIQ.entity.Invoice;
 import com.invoiceiq.InvoiceIQ.entity.InvoiceItem;
+import com.invoiceiq.InvoiceIQ.entity.DuplicateResult;
 import com.invoiceiq.InvoiceIQ.entity.ValidationResult;
+
 import com.invoiceiq.InvoiceIQ.repository.InvoiceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -428,6 +430,48 @@ public class InvoiceService {
         return invoiceRepository.save(invoice);
     }
 
+
+
+    public Invoice reviewDuplicate(
+            String invoiceId,
+            String userId,
+            String decision
+    ) {
+        Invoice invoice = invoiceRepository
+                .findByIdAndUserId(invoiceId, userId)
+                .orElseThrow(() ->
+                        new RuntimeException("Invoice not found")
+                );
+
+        if (!"COMPLETED".equalsIgnoreCase(
+                invoice.getProcessingStatus())) {
+            throw new IllegalStateException(
+                    "Only completed invoices can have their duplicates reviewed"
+            );
+        }
+
+        DuplicateResult duplicate = invoice.getDuplicate();
+
+        if (duplicate == null || !duplicate.isPotentialDuplicate()) {
+            throw new IllegalStateException(
+                    "This invoice has no potential duplicate to review"
+            );
+        }
+
+        if (decision == null ||
+                (!"CONFIRMED_SEPARATE".equals(decision)
+                        && !"CONFIRMED_DUPLICATE".equals(decision))) {
+            throw new IllegalArgumentException(
+                    "Decision must be CONFIRMED_SEPARATE or CONFIRMED_DUPLICATE"
+            );
+        }
+
+        duplicate.setReviewDecision(decision);
+        invoice.setDuplicate(duplicate);
+        invoice.setUpdatedAt(LocalDateTime.now());
+
+        return invoiceRepository.save(invoice);
+    }
 
 
     public void deleteInvoice(

@@ -377,6 +377,31 @@ public class InvoiceController {
         }
     }
 
+    @PutMapping("/{id}/duplicate-review")
+    public ResponseEntity<?> reviewDuplicate(
+            @PathVariable String id,
+            @RequestBody java.util.Map<String, String> request
+    ) {
+        String userId = securityUtil.getCurrentUserId();
+
+        try {
+            String decision = request.get("decision");
+
+            Invoice reviewedInvoice = invoiceService.reviewDuplicate(
+                    id,
+                    userId,
+                    decision
+            );
+
+            return ResponseEntity.ok(reviewedInvoice);
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
 
 
     @GetMapping("/ai-insights")

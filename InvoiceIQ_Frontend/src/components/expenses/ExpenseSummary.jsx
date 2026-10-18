@@ -5,7 +5,7 @@ function formatAmount(amount) {
     style: 'currency',
     currency: 'INR',
     maximumFractionDigits: 2,
-  }).format(amount || 0)
+  }).format(Number(amount) || 0)
 }
 
 function ExpenseSummary() {
@@ -110,13 +110,13 @@ function ExpenseSummary() {
           key={item.title}
           className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md"
         >
-          <div className="flex items-start justify-between">
-            <div>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
               <p className="text-sm font-medium text-slate-500">
                 {item.title}
               </p>
 
-              <h2 className="mt-2 text-2xl font-bold text-slate-900">
+              <h2 className="mt-2 truncate text-2xl font-bold text-slate-900">
                 {item.value}
               </h2>
 
@@ -125,7 +125,7 @@ function ExpenseSummary() {
               </p>
             </div>
 
-            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-yellow-100 text-xl">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-yellow-100 text-xl">
               {item.icon}
             </div>
           </div>

@@ -12,4 +12,6 @@ public class DuplicateResult {
     private boolean potentialDuplicate;
 
     private String matchedInvoiceId;
+
+    private String reviewDecision;
 }

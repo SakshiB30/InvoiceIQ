@@ -18,7 +18,7 @@ const initialState = {
   filters: {
     search: '',
     category: 'All',
-    dateFilter: 'This Month',
+    dateFilter: 'All',
     fromDate: '',
     toDate: '',
   },
@@ -64,7 +64,7 @@ const expenseSlice = createSlice({
       state.filters = {
         search: '',
         category: 'All',
-        dateFilter: 'This Month',
+        dateFilter: 'All',
         fromDate: '',
         toDate: '',
       }

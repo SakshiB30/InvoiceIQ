@@ -95,7 +95,7 @@ function ExpenseFilters({ onFilterChange }) {
   )
 
   const [dateFilter, setDateFilter] = useState(
-    reduxFilters.dateFilter || 'This Month',
+    reduxFilters.dateFilter || 'All',
   )
 
   useEffect(() => {
@@ -104,7 +104,7 @@ function ExpenseFilters({ onFilterChange }) {
       reduxFilters.category || 'All',
     )
     setDateFilter(
-      reduxFilters.dateFilter || 'This Month',
+      reduxFilters.dateFilter || 'All',
     )
   }, [
     reduxFilters.search,

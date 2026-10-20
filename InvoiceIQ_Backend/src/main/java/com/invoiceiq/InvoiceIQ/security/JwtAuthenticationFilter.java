@@ -51,11 +51,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         try {
 
-            System.out.println("JWT received");
-
             String email = jwtService.extractEmail(token);
-
-            System.out.println("JWT email: " + email);
 
             if (email != null &&
                     SecurityContextHolder.getContext()
@@ -66,10 +62,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 if (user != null &&
                         jwtService.isTokenValid(token, email)) {
-
-                    System.out.println(
-                            "JWT authentication successful for: " + email
-                    );
 
                     UsernamePasswordAuthenticationToken authentication =
                             new UsernamePasswordAuthenticationToken(
@@ -93,16 +85,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
             }
 
-        } catch (Exception e) {
-
-            System.out.println(
-                    "JWT authentication failed: " + e.getMessage()
-            );
+        } catch (Exception ignored) {
+            // Invalid or malformed tokens must not authenticate the request.
+            // Protected endpoints remain subject to Spring Security authorization.
         }
 
-        // VERY IMPORTANT:
-        // Continue the request through the remaining filters
-        // and eventually to the controller.
         filterChain.doFilter(request, response);
     }
 }

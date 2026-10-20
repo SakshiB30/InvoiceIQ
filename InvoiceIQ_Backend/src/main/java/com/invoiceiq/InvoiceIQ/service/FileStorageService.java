@@ -49,4 +49,27 @@ public class FileStorageService {
 
         return targetLocation.toString();
     }
+
+
+    public Path resolveStoredFile(String storedPath) throws IOException {
+
+        if (storedPath == null || storedPath.isBlank()) {
+            throw new IOException("Stored file path is missing");
+        }
+
+        Path requestedPath = Paths.get(storedPath)
+                .toAbsolutePath()
+                .normalize();
+
+        if (!requestedPath.startsWith(uploadDirectory)) {
+            throw new IOException("Invalid stored file path");
+        }
+
+        if (!Files.isRegularFile(requestedPath)) {
+            throw new IOException("Stored file does not exist");
+        }
+
+        return requestedPath;
+    }
+
 }

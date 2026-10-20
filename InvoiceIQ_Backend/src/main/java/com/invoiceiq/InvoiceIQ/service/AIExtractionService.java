@@ -10,6 +10,9 @@ import org.springframework.web.client.RestClient;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,31 +23,70 @@ public class AIExtractionService {
 
     private final ObjectMapper objectMapper;
 
-    @Value("${gemini.api.key}")
+    @Value("${gemini.api.key:}")
     private String apiKey;
 
-    @Value("${gemini.model}")
+    @Value("${gemini.model:gemini-3.5-flash-lite}")
     private String model;
+
+    /**
+     * Set GEMINI_ENABLED=true to enable actual Gemini API calls.
+     * If unset or false, mock mode is enabled.
+     */
+    @Value("${gemini.enabled:false}")
+    private boolean geminiEnabled;
 
     private RestClient restClient;
 
     @PostConstruct
     public void initializeRestClient() {
 
+        if (!geminiEnabled) {
+            System.out.println(
+                    "Gemini is disabled. Mock invoice extraction is enabled."
+            );
+            return;
+        }
+
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new IllegalStateException(
+                    "GEMINI_ENABLED=true, but GEMINI_API_KEY is not configured."
+            );
+        }
+
         this.restClient = RestClient.builder()
                 .baseUrl("https://generativelanguage.googleapis.com")
-                .defaultHeader(
-                        "x-goog-api-key",
-                        apiKey
-                )
+                .defaultHeader("x-goog-api-key", apiKey)
                 .defaultHeader(
                         "Content-Type",
                         MediaType.APPLICATION_JSON_VALUE
                 )
                 .build();
+
+        System.out.println("Gemini API integration is enabled.");
     }
 
+    /**
+     * Extracts invoice information.
+     *
+     * Mock mode:
+     * Returns fixed test data without calling Gemini.
+     *
+     * Real mode:
+     * Sends OCR text to Gemini and converts its JSON response
+     * into ExtractedInvoiceDTO.
+     */
     public ExtractedInvoiceDTO extractInvoiceData(String rawText) {
+
+        if (!geminiEnabled) {
+            return createMockInvoiceData();
+        }
+
+        if (rawText == null || rawText.isBlank()) {
+            throw new IllegalArgumentException(
+                    "OCR text cannot be empty."
+            );
+        }
 
         try {
 
@@ -65,8 +107,7 @@ public class AIExtractionService {
                     %s
                     """.formatted(rawText);
 
-            Map<String, Object> requestBody =
-                    new HashMap<>();
+            Map<String, Object> requestBody = new HashMap<>();
 
             Map<String, Object> part =
                     Map.of("text", prompt);
@@ -100,7 +141,7 @@ public class AIExtractionService {
                     generationConfig
             );
 
-            Map response = restClient.post()
+            Map<?, ?> response = restClient.post()
                     .uri(
                             "/v1beta/models/"
                                     + model
@@ -110,13 +151,20 @@ public class AIExtractionService {
                     .retrieve()
                     .body(Map.class);
 
+            if (response == null) {
+                throw new IllegalStateException(
+                        "Gemini returned an empty response."
+                );
+            }
+
             JsonNode responseNode =
                     objectMapper.valueToTree(response);
 
             String jsonText =
                     extractResponseText(responseNode);
 
-            JsonNode invoiceJson = objectMapper.readTree(jsonText);
+            JsonNode invoiceJson =
+                    objectMapper.readTree(jsonText);
 
             if (invoiceJson instanceof
                     tools.jackson.databind.node.ObjectNode invoiceObject) {
@@ -131,56 +179,77 @@ public class AIExtractionService {
                             ExtractedInvoiceDTO.class
                     );
 
-            System.out.println("GEMINI JSON:");
-            System.out.println(jsonText);
-
-            System.out.println("EXTRACTED DTO:");
-            System.out.println(result);
+            // Do not log complete invoice data or extracted PII.
+            System.out.println(
+                    "Gemini invoice extraction completed successfully."
+            );
 
             return result;
 
         } catch (Exception e) {
 
+            // Avoid logging invoice contents, API keys, or raw responses.
             throw new RuntimeException(
-                    "Failed to extract invoice data using Gemini AI",
+                    "Failed to extract invoice data using Gemini AI.",
                     e
             );
         }
     }
 
-    private String extractResponseText(
-            JsonNode response
-    ) {
+    /**
+     * Returns predictable test data without making an external API request.
+     *
+     * This is deliberately not based on the supplied OCR text.
+     * The returned values must not be treated as genuine invoice data.
+     */
+    private ExtractedInvoiceDTO createMockInvoiceData() {
 
-        JsonNode candidates =
-                response.path("candidates");
+        ExtractedInvoiceDTO mock = new ExtractedInvoiceDTO();
 
-        if (!candidates.isArray()
-                || candidates.isEmpty()) {
+        mock.setVendorName("TEST VENDOR");
+        mock.setGstin(null);
+        mock.setInvoiceNumber("TEST-INV-001");
+        mock.setInvoiceDate(null);
+        mock.setDueDate(null);
+        mock.setItems(new ArrayList<>());
+        mock.setSubtotal(0.0);
+        mock.setTax(0.0);
+        mock.setTotalAmount(0.0);
 
-            throw new RuntimeException(
-                    "Gemini did not return any candidates"
+        System.out.println(
+                "MOCK MODE: Returning test invoice data. "
+                        + "Gemini API was not called."
+        );
+
+        return mock;
+    }
+
+    private String extractResponseText(JsonNode response) {
+
+        JsonNode candidates = response.path("candidates");
+
+        if (!candidates.isArray() || candidates.isEmpty()) {
+            throw new IllegalStateException(
+                    "Gemini did not return any candidates."
             );
         }
 
-        JsonNode parts =
-                candidates
-                        .get(0)
-                        .path("content")
-                        .path("parts");
+        JsonNode parts = candidates
+                .get(0)
+                .path("content")
+                .path("parts");
 
         for (JsonNode part : parts) {
 
-            JsonNode text =
-                    part.get("text");
+            JsonNode text = part.get("text");
 
-            if (text != null) {
+            if (text != null && !text.isNull()) {
                 return text.asText();
             }
         }
 
-        throw new RuntimeException(
-                "Gemini response did not contain text"
+        throw new IllegalStateException(
+                "Gemini response did not contain text."
         );
     }
 
@@ -188,6 +257,7 @@ public class AIExtractionService {
             tools.jackson.databind.node.ObjectNode invoice,
             String fieldName
     ) {
+
         JsonNode dateNode = invoice.get(fieldName);
 
         if (dateNode == null || dateNode.isNull()) {
@@ -207,21 +277,19 @@ public class AIExtractionService {
         }
 
         try {
-            java.time.LocalDate.parse(dateValue);
-        } catch (java.time.format.DateTimeParseException e) {
+            LocalDate.parse(dateValue);
+        } catch (DateTimeParseException e) {
             invoice.putNull(fieldName);
         }
     }
 
     private Map<String, Object> createInvoiceSchema() {
 
-        Map<String, Object> schema =
-                new HashMap<>();
+        Map<String, Object> schema = new HashMap<>();
 
         schema.put("type", "OBJECT");
 
-        Map<String, Object> properties =
-                new HashMap<>();
+        Map<String, Object> properties = new HashMap<>();
 
         properties.put(
                 "vendorName",
@@ -248,8 +316,7 @@ public class AIExtractionService {
                 Map.of("type", "STRING")
         );
 
-        Map<String, Object> itemProperties =
-                new HashMap<>();
+        Map<String, Object> itemProperties = new HashMap<>();
 
         itemProperties.put(
                 "description",
@@ -271,18 +338,10 @@ public class AIExtractionService {
                 Map.of("type", "NUMBER")
         );
 
-        Map<String, Object> itemSchema =
-                new HashMap<>();
+        Map<String, Object> itemSchema = new HashMap<>();
 
-        itemSchema.put(
-                "type",
-                "OBJECT"
-        );
-
-        itemSchema.put(
-                "properties",
-                itemProperties
-        );
+        itemSchema.put("type", "OBJECT");
+        itemSchema.put("properties", itemProperties);
 
         itemSchema.put(
                 "required",
@@ -317,10 +376,7 @@ public class AIExtractionService {
                 Map.of("type", "NUMBER")
         );
 
-        schema.put(
-                "properties",
-                properties
-        );
+        schema.put("properties", properties);
 
         schema.put(
                 "required",

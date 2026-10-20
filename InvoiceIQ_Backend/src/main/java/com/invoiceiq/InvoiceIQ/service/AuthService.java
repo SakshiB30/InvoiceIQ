@@ -11,6 +11,10 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+import java.util.Locale;
+
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -21,14 +25,21 @@ public class AuthService {
 
     public void register(RegisterRequest request) {
 
-        if (userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email already registered");
+        String normalizedEmail = request.getEmail()
+                .trim()
+                .toLowerCase(Locale.ROOT);
+
+        if (userRepository.existsByEmail(normalizedEmail)) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Email already registered"
+            );
         }
 
         User user = new User();
 
         user.setName(request.getName());
-        user.setEmail(request.getEmail());
+        user.setEmail(normalizedEmail);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setBusinessName(request.getBusinessName());
 
@@ -42,9 +53,16 @@ public class AuthService {
 
     public String login(LoginRequest request) {
 
-        User user = userRepository.findByEmail(request.getEmail())
+        String normalizedEmail = request.getEmail()
+                .trim()
+                .toLowerCase(Locale.ROOT);
+
+        User user = userRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() ->
-                        new RuntimeException("Invalid email or password")
+                        new ResponseStatusException(
+                                HttpStatus.UNAUTHORIZED,
+                                "Invalid email or password"
+                        )
                 );
 
         boolean passwordMatches = passwordEncoder.matches(
@@ -53,7 +71,10 @@ public class AuthService {
         );
 
         if (!passwordMatches) {
-            throw new RuntimeException("Invalid email or password");
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "Invalid email or password"
+            );
         }
 
         return jwtService.generateToken(user.getEmail());

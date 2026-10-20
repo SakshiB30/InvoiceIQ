@@ -2,11 +2,10 @@ package com.invoiceiq.InvoiceIQ.service;
 
 import com.invoiceiq.InvoiceIQ.dto.ExtractedInvoiceDTO;
 import com.invoiceiq.InvoiceIQ.dto.ExtractedInvoiceItemDTO;
+import com.invoiceiq.InvoiceIQ.entity.DuplicateResult;
 import com.invoiceiq.InvoiceIQ.entity.Invoice;
 import com.invoiceiq.InvoiceIQ.entity.InvoiceItem;
-import com.invoiceiq.InvoiceIQ.entity.DuplicateResult;
 import com.invoiceiq.InvoiceIQ.entity.ValidationResult;
-
 import com.invoiceiq.InvoiceIQ.repository.InvoiceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -15,29 +14,24 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
 public class InvoiceService {
 
     private final InvoiceRepository invoiceRepository;
-
     private final InvoiceValidationService invoiceValidationService;
 
-    public Invoice createInvoice(
-            Invoice invoice,
-            String userId
-    ) {
+    public Invoice createInvoice(Invoice invoice, String userId) {
         invoice.setUserId(userId);
 
         LocalDateTime now = LocalDateTime.now();
-
         invoice.setCreatedAt(now);
         invoice.setUpdatedAt(now);
 
         return invoiceRepository.save(invoice);
     }
-
 
     public List<Invoice> getUserInvoices(
             String userId,
@@ -49,53 +43,36 @@ public class InvoiceService {
         List<Invoice> invoices;
 
         if (search != null && !search.isBlank()) {
-
-            invoices = searchInvoices(
-                    userId,
-                    search
-            );
-
+            invoices = searchInvoices(userId, search);
         } else {
-
-            invoices =
-                    invoiceRepository.findByUserId(
-                            userId
-                    );
+            invoices = invoiceRepository.findByUserId(userId);
         }
 
-        if (category != null &&
-                !category.isBlank()) {
-
+        if (category != null && !category.isBlank()) {
             invoices = invoices.stream()
                     .filter(invoice ->
                             invoice.getCategory() != null
                                     && invoice.getCategory()
-                                    .equalsIgnoreCase(
-                                            category
-                                    )
+                                    .equalsIgnoreCase(category)
                     )
                     .toList();
         }
 
         if (fromDate != null) {
-
             invoices = invoices.stream()
                     .filter(invoice ->
                             invoice.getInvoiceDate() != null
-                                    && !invoice
-                                    .getInvoiceDate()
+                                    && !invoice.getInvoiceDate()
                                     .isBefore(fromDate)
                     )
                     .toList();
         }
 
         if (toDate != null) {
-
             invoices = invoices.stream()
                     .filter(invoice ->
                             invoice.getInvoiceDate() != null
-                                    && !invoice
-                                    .getInvoiceDate()
+                                    && !invoice.getInvoiceDate()
                                     .isAfter(toDate)
                     )
                     .toList();
@@ -103,7 +80,6 @@ public class InvoiceService {
 
         return invoices;
     }
-
 
     private List<Invoice> searchInvoices(
             String userId,
@@ -123,8 +99,7 @@ public class InvoiceService {
                                 search
                         );
 
-        return java.util.stream.Stream
-                .concat(
+        return Stream.concat(
                         invoiceNumberResults.stream(),
                         vendorResults.stream()
                 )
@@ -132,23 +107,15 @@ public class InvoiceService {
                 .toList();
     }
 
-
-    public Invoice getInvoiceById(
-            String invoiceId,
-            String userId
-    ) {
-        return invoiceRepository
-                .findByIdAndUserId(
-                        invoiceId,
-                        userId
-                )
+    public Invoice getInvoiceById(String invoiceId, String userId) {
+        return invoiceRepository.findByIdAndUserId(invoiceId, userId)
                 .orElseThrow(() ->
-                        new RuntimeException(
+                        new org.springframework.web.server.ResponseStatusException(
+                                org.springframework.http.HttpStatus.NOT_FOUND,
                                 "Invoice not found"
                         )
                 );
     }
-
 
     public Invoice updateInvoice(
             String invoiceId,
@@ -156,259 +123,84 @@ public class InvoiceService {
             Invoice updatedInvoice
     ) {
         Invoice existingInvoice =
-                invoiceRepository
-                        .findByIdAndUserId(
-                                invoiceId,
-                                userId
-                        )
+                invoiceRepository.findByIdAndUserId(invoiceId, userId)
                         .orElseThrow(() ->
-                                new RuntimeException(
-                                        "Invoice not found"
-                                )
+                                new RuntimeException("Invoice not found")
                         );
 
+        existingInvoice.setVendor(updatedInvoice.getVendor());
+        existingInvoice.setInvoiceNumber(updatedInvoice.getInvoiceNumber());
+        existingInvoice.setInvoiceDate(updatedInvoice.getInvoiceDate());
+        existingInvoice.setDueDate(updatedInvoice.getDueDate());
+        existingInvoice.setItems(updatedInvoice.getItems());
+        existingInvoice.setSubtotal(updatedInvoice.getSubtotal());
+        existingInvoice.setTax(updatedInvoice.getTax());
+        existingInvoice.setTotalAmount(updatedInvoice.getTotalAmount());
+        existingInvoice.setCategory(updatedInvoice.getCategory());
 
-        existingInvoice.setVendor(
-                updatedInvoice.getVendor()
-        );
+        // Editing invalidates the previous validation result.
+        existingInvoice.setProcessingStatus("PENDING");
+        existingInvoice.setValidation(null);
+        existingInvoice.setUpdatedAt(LocalDateTime.now());
 
-
-        existingInvoice.setInvoiceNumber(
-                updatedInvoice.getInvoiceNumber()
-        );
-
-
-        existingInvoice.setInvoiceDate(
-                updatedInvoice.getInvoiceDate()
-        );
-
-
-        existingInvoice.setDueDate(
-                updatedInvoice.getDueDate()
-        );
-
-
-        existingInvoice.setItems(
-                updatedInvoice.getItems()
-        );
-
-
-        existingInvoice.setSubtotal(
-                updatedInvoice.getSubtotal()
-        );
-
-
-        existingInvoice.setTax(
-                updatedInvoice.getTax()
-        );
-
-
-        existingInvoice.setTotalAmount(
-                updatedInvoice.getTotalAmount()
-        );
-
-
-        existingInvoice.setCategory(
-                updatedInvoice.getCategory()
-        );
-
-
-        /*
-         * Editing an invoice invalidates
-         * the previous validation result.
-         */
-        existingInvoice.setProcessingStatus(
-                "PENDING"
-        );
-
-        existingInvoice.setValidation(
-                null
-        );
-
-
-        existingInvoice.setUpdatedAt(
-                LocalDateTime.now()
-        );
-
-
-        return invoiceRepository.save(
-                existingInvoice
-        );
+        return invoiceRepository.save(existingInvoice);
     }
 
-
-    /**
-     * Re-validates the currently saved invoice.
-     *
-     * This converts the saved Invoice entity
-     * back into ExtractedInvoiceDTO so that the
-     * existing InvoiceValidationService can be
-     * reused.
-     */
-    public Invoice revalidateInvoice(
-            String invoiceId,
-            String userId
-    ) {
+    public Invoice revalidateInvoice(String invoiceId, String userId) {
         Invoice invoice =
-                invoiceRepository
-                        .findByIdAndUserId(
-                                invoiceId,
-                                userId
-                        )
+                invoiceRepository.findByIdAndUserId(invoiceId, userId)
                         .orElseThrow(() ->
-                                new RuntimeException(
-                                        "Invoice not found"
-                                )
+                                new RuntimeException("Invoice not found")
                         );
 
-
-        /*
-         * Convert saved invoice items into
-         * ExtractedInvoiceItemDTO objects.
-         */
-        List<ExtractedInvoiceItemDTO> extractedItems =
-                new ArrayList<>();
-
+        List<ExtractedInvoiceItemDTO> extractedItems = new ArrayList<>();
 
         if (invoice.getItems() != null) {
-
-            for (
-                    InvoiceItem item :
-                    invoice.getItems()
-            ) {
-
+            for (InvoiceItem item : invoice.getItems()) {
                 ExtractedInvoiceItemDTO extractedItem =
                         new ExtractedInvoiceItemDTO();
 
+                extractedItem.setDescription(item.getDescription());
+                extractedItem.setQuantity(item.getQuantity());
+                extractedItem.setUnitPrice(item.getUnitPrice());
+                extractedItem.setAmount(item.getAmount());
 
-                extractedItem.setDescription(
-                        item.getDescription()
-                );
-
-
-                extractedItem.setQuantity(
-                        item.getQuantity()
-                );
-
-
-                extractedItem.setUnitPrice(
-                        item.getUnitPrice()
-                );
-
-
-                extractedItem.setAmount(
-                        item.getAmount()
-                );
-
-
-                extractedItems.add(
-                        extractedItem
-                );
+                extractedItems.add(extractedItem);
             }
         }
 
-
-        /*
-         * Convert Invoice into
-         * ExtractedInvoiceDTO.
-         */
         ExtractedInvoiceDTO extractedInvoice =
                 new ExtractedInvoiceDTO();
 
-
         if (invoice.getVendor() != null) {
-
-            extractedInvoice.setVendorName(
-                    invoice.getVendor().getName()
-            );
-
-            extractedInvoice.setGstin(
-                    invoice.getVendor().getGstin()
-            );
+            extractedInvoice.setVendorName(invoice.getVendor().getName());
+            extractedInvoice.setGstin(invoice.getVendor().getGstin());
         }
 
+        extractedInvoice.setInvoiceNumber(invoice.getInvoiceNumber());
+        extractedInvoice.setInvoiceDate(invoice.getInvoiceDate());
+        extractedInvoice.setDueDate(invoice.getDueDate());
+        extractedInvoice.setItems(extractedItems);
+        extractedInvoice.setSubtotal(invoice.getSubtotal());
+        extractedInvoice.setTax(invoice.getTax());
+        extractedInvoice.setTotalAmount(invoice.getTotalAmount());
 
-        extractedInvoice.setInvoiceNumber(
-                invoice.getInvoiceNumber()
-        );
-
-
-        extractedInvoice.setInvoiceDate(
-                invoice.getInvoiceDate()
-        );
-
-
-        extractedInvoice.setDueDate(
-                invoice.getDueDate()
-        );
-
-
-        extractedInvoice.setItems(
-                extractedItems
-        );
-
-
-        extractedInvoice.setSubtotal(
-                invoice.getSubtotal()
-        );
-
-
-        extractedInvoice.setTax(
-                invoice.getTax()
-        );
-
-
-        extractedInvoice.setTotalAmount(
-                invoice.getTotalAmount()
-        );
-
-
-        /*
-         * Run the existing validation logic.
-         */
         ValidationResult validationResult =
-                invoiceValidationService.validate(
-                        extractedInvoice
-                );
+                invoiceValidationService.validate(extractedInvoice);
 
+        invoice.setValidation(validationResult);
+        invoice.setUpdatedAt(LocalDateTime.now());
 
-        /*
-         * Store the new validation result.
-         */
-        invoice.setValidation(
-                validationResult
-        );
-
-
-        invoice.setUpdatedAt(
-                LocalDateTime.now()
-        );
-
-
-        return invoiceRepository.save(
-                invoice
-        );
+        return invoiceRepository.save(invoice);
     }
 
-
-
-    public Invoice confirmInvoice(
-            String invoiceId,
-            String userId
-    ) {
+    public Invoice confirmInvoice(String invoiceId, String userId) {
         Invoice invoice =
-                invoiceRepository
-                        .findByIdAndUserId(
-                                invoiceId,
-                                userId
-                        )
+                invoiceRepository.findByIdAndUserId(invoiceId, userId)
                         .orElseThrow(() ->
-                                new RuntimeException(
-                                        "Invoice not found"
-                                )
+                                new RuntimeException("Invoice not found")
                         );
 
-        // Reject confirmation if validation has not passed.
         ValidationResult validation = invoice.getValidation();
 
         if (validation == null || !validation.isValid()) {
@@ -417,11 +209,8 @@ public class InvoiceService {
             );
         }
 
-        // Prevent unnecessary changes to an already completed invoice.
         if ("COMPLETED".equalsIgnoreCase(invoice.getProcessingStatus())) {
-            throw new IllegalStateException(
-                    "Invoice is already completed"
-            );
+            throw new IllegalStateException("Invoice is already completed");
         }
 
         invoice.setProcessingStatus("COMPLETED");
@@ -430,21 +219,18 @@ public class InvoiceService {
         return invoiceRepository.save(invoice);
     }
 
-
-
     public Invoice reviewDuplicate(
             String invoiceId,
             String userId,
             String decision
     ) {
-        Invoice invoice = invoiceRepository
-                .findByIdAndUserId(invoiceId, userId)
-                .orElseThrow(() ->
-                        new RuntimeException("Invoice not found")
-                );
+        Invoice invoice =
+                invoiceRepository.findByIdAndUserId(invoiceId, userId)
+                        .orElseThrow(() ->
+                                new RuntimeException("Invoice not found")
+                        );
 
-        if (!"COMPLETED".equalsIgnoreCase(
-                invoice.getProcessingStatus())) {
+        if (!"COMPLETED".equalsIgnoreCase(invoice.getProcessingStatus())) {
             throw new IllegalStateException(
                     "Only completed invoices can have their duplicates reviewed"
             );
@@ -458,9 +244,9 @@ public class InvoiceService {
             );
         }
 
-        if (decision == null ||
-                (!"CONFIRMED_SEPARATE".equals(decision)
-                        && !"CONFIRMED_DUPLICATE".equals(decision))) {
+        if (decision == null
+                || (!"CONFIRMED_SEPARATE".equals(decision)
+                && !"CONFIRMED_DUPLICATE".equals(decision))) {
             throw new IllegalArgumentException(
                     "Decision must be CONFIRMED_SEPARATE or CONFIRMED_DUPLICATE"
             );
@@ -473,26 +259,13 @@ public class InvoiceService {
         return invoiceRepository.save(invoice);
     }
 
-
-    public void deleteInvoice(
-            String invoiceId,
-            String userId
-    ) {
+    public void deleteInvoice(String invoiceId, String userId) {
         Invoice invoice =
-                invoiceRepository
-                        .findByIdAndUserId(
-                                invoiceId,
-                                userId
-                        )
+                invoiceRepository.findByIdAndUserId(invoiceId, userId)
                         .orElseThrow(() ->
-                                new RuntimeException(
-                                        "Invoice not found"
-                                )
+                                new RuntimeException("Invoice not found")
                         );
 
-
-        invoiceRepository.delete(
-                invoice
-        );
+        invoiceRepository.delete(invoice);
     }
 }

@@ -1,19 +1,27 @@
 package com.invoiceiq.InvoiceIQ.controller;
 
 import com.invoiceiq.InvoiceIQ.dto.AIInsightsResponseDTO;
-import com.invoiceiq.InvoiceIQ.dto.ExtractedInvoiceDTO;
 import com.invoiceiq.InvoiceIQ.dto.InvoiceProcessingResponseDTO;
 import com.invoiceiq.InvoiceIQ.entity.Invoice;
-import com.invoiceiq.InvoiceIQ.entity.ValidationResult;
 import com.invoiceiq.InvoiceIQ.service.AIExtractionService;
 import com.invoiceiq.InvoiceIQ.service.AIInsightsService;
 import com.invoiceiq.InvoiceIQ.service.InvoiceProcessingService;
 import com.invoiceiq.InvoiceIQ.service.InvoiceService;
 import com.invoiceiq.InvoiceIQ.service.InvoiceValidationService;
 import com.invoiceiq.InvoiceIQ.util.SecurityUtil;
-import org.springframework.http.ResponseEntity;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import com.invoiceiq.InvoiceIQ.entity.SourceDocument;
+import com.invoiceiq.InvoiceIQ.service.FileStorageService;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -28,20 +36,19 @@ public class InvoiceController {
 
     private final InvoiceProcessingService invoiceProcessingService;
 
-    private final AIExtractionService aiExtractionService;
-
-    private final InvoiceValidationService invoiceValidationService;
-
     private final AIInsightsService aiInsightsService;
 
+    private final FileStorageService fileStorageService;
+
+    private static final Logger logger =
+            LoggerFactory.getLogger(InvoiceController.class);
 
     public InvoiceController(
             InvoiceService invoiceService,
             SecurityUtil securityUtil,
             InvoiceProcessingService invoiceProcessingService,
-            AIExtractionService aiExtractionService,
-            InvoiceValidationService invoiceValidationService,
-            AIInsightsService aiInsightsService
+            AIInsightsService aiInsightsService,
+            FileStorageService fileStorageService
     ) {
         this.invoiceService =
                 invoiceService;
@@ -52,14 +59,11 @@ public class InvoiceController {
         this.invoiceProcessingService =
                 invoiceProcessingService;
 
-        this.aiExtractionService =
-                aiExtractionService;
-
-        this.invoiceValidationService =
-                invoiceValidationService;
-
         this.aiInsightsService =
                 aiInsightsService;
+
+        this.fileStorageService =
+                fileStorageService;
     }
 
 
@@ -265,92 +269,84 @@ public class InvoiceController {
             );
 
         } catch (Exception e) {
-
-            e.printStackTrace();
-
-            return ResponseEntity
-                    .internalServerError()
-                    .build();
+            logger.error("Invoice upload failed", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
-
-    @PostMapping("/ai-test")
-    public ResponseEntity<ExtractedInvoiceDTO> testAIExtraction(
-            @RequestBody String rawText
+    @GetMapping("/{id}/document")
+    public ResponseEntity<byte[]> getInvoiceDocument(
+            @PathVariable String id
     ) {
-        System.out.println(
-                "========== AI TEST ENDPOINT CALLED =========="
-        );
+        String userId = securityUtil.getCurrentUserId();
 
+        // Step 1: Verify that this invoice belongs to the logged-in user.
+        Invoice invoice;
 
-        System.out.println(
-                "RAW TEXT:"
-        );
+        try {
+            invoice = invoiceService.getInvoiceById(id, userId);
+        } catch (org.springframework.web.server.ResponseStatusException e) {
+            if (e.getStatusCode().value() == 404) {
+                return ResponseEntity.notFound().build();
+            }
+            throw e;
+        }
 
+        // Step 2: Get the stored document metadata.
+        SourceDocument document = invoice.getSourceDocument();
 
-        System.out.println(
-                rawText
-        );
+        if (document == null
+                || document.getStorageUrl() == null
+                || document.getStorageUrl().isBlank()) {
+            return ResponseEntity.notFound().build();
+        }
 
+        // Step 3: Allow only the file types supported by InvoiceIQ.
+        String fileType = document.getFileType();
+        MediaType mediaType;
 
-        ExtractedInvoiceDTO result =
-                aiExtractionService.extractInvoiceData(
-                        rawText
-                );
+        if ("application/pdf".equalsIgnoreCase(fileType)) {
+            mediaType = MediaType.APPLICATION_PDF;
+        } else if ("image/png".equalsIgnoreCase(fileType)) {
+            mediaType = MediaType.IMAGE_PNG;
+        } else if ("image/jpeg".equalsIgnoreCase(fileType)) {
+            mediaType = MediaType.IMAGE_JPEG;
+        } else {
+            return ResponseEntity.badRequest().build();
+        }
 
+        // Step 4: Resolve the stored path and read the file safely.
+        try {
+            Path filePath =
+                    fileStorageService.resolveStoredFile(document.getStorageUrl());
 
-        System.out.println(
-                "AI TEST RESULT:"
-        );
+            byte[] fileBytes = Files.readAllBytes(filePath);
 
+            // Step 5: Use a safe fallback filename if metadata is missing.
+            String fileName = document.getFileName();
 
-        System.out.println(
-                result
-        );
+            if (fileName == null || fileName.isBlank()) {
+                fileName = "invoice-document";
+            }
 
+            ContentDisposition disposition = ContentDisposition
+                    .inline()
+                    .filename(fileName, StandardCharsets.UTF_8)
+                    .build();
 
-        System.out.println(
-                "========== AI TEST ENDPOINT FINISHED =========="
-        );
+            return ResponseEntity.ok()
+                    .contentType(mediaType)
+                    .header(
+                            HttpHeaders.CONTENT_DISPOSITION,
+                            disposition.toString()
+                    )
+                    .header("X-Content-Type-Options", "nosniff")
+                    .body(fileBytes);
 
-
-        return ResponseEntity.ok(
-                result
-        );
+        } catch (IOException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
-
-
-    @GetMapping("/security-test")
-    public ResponseEntity<String> securityTest() {
-
-        System.out.println(
-                "========== SECURITY TEST CONTROLLER REACHED =========="
-        );
-
-
-        return ResponseEntity.ok(
-                "Security test successful"
-        );
-    }
-
-
-    @PostMapping("/validation-test")
-    public ResponseEntity<ValidationResult> testValidation(
-            @RequestBody ExtractedInvoiceDTO invoice
-    ) {
-        ValidationResult result =
-                invoiceValidationService.validate(
-                        invoice
-                );
-
-
-        return ResponseEntity.ok(
-                result
-        );
-    }
-
-
 
     @PutMapping("/{id}/confirm")
     public ResponseEntity<?> confirmInvoice(

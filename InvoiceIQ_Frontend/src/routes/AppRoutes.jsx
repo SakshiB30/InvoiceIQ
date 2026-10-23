@@ -1,5 +1,6 @@
 import { Routes, Route } from 'react-router-dom'
 
+import LandingPage from '../pages/LandingPage'
 import Dashboard from '../pages/Dashboard'
 import Invoices from '../pages/Invoices'
 import Expenses from '../pages/Expenses'
@@ -15,25 +16,23 @@ import InvoiceDetails from '../components/invoices/InvoiceDetails'
 function AppRoutes() {
   return (
     <Routes>
-
+      {/* Public pages */}
+      <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
 
-
+      {/* Protected application */}
       <Route element={<ProtectedRoute />}>
-    <Route element={<DashboardLayout />}>
-    <Route path="/" element={<Dashboard />} />
-    <Route path="/invoices" element={<Invoices />} />
-     <Route path="/invoices/:id" element={<InvoiceDetails />} />
-
-    <Route path="/expenses" element={<Expenses />} />
-    <Route path="/analytics" element={<Analytics />} />
-    <Route path="/insights" element={<Insights />} />
-    <Route path="/settings" element={<Settings />} />
-   
-  </Route>
-</Route>
-      
+        <Route element={<DashboardLayout />}>
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/invoices" element={<Invoices />} />
+          <Route path="/invoices/:id" element={<InvoiceDetails />} />
+          <Route path="/expenses" element={<Expenses />} />
+          <Route path="/analytics" element={<Analytics />} />
+          <Route path="/insights" element={<Insights />} />
+          <Route path="/settings" element={<Settings />} />
+        </Route>
+      </Route>
     </Routes>
   )
 }

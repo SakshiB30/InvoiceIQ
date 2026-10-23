@@ -24,13 +24,21 @@ function Login() {
     }))
   }
 
+  const handleBack = () => {
+    if (window.history.state?.idx > 0) {
+      navigate(-1)
+    } else {
+      navigate('/')
+    }
+  }
+
   const handleSubmit = async (event) => {
     event.preventDefault()
 
     const result = await dispatch(loginUser(formData))
 
     if (loginUser.fulfilled.match(result)) {
-      navigate('/')
+      navigate('/dashboard')
     }
   }
 
@@ -52,6 +60,30 @@ function Login() {
 
       {/* Login Card */}
       <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-slate-800 bg-[#151B2B] p-6 shadow-2xl shadow-black/30 sm:p-9">
+        {/* Back Button */}
+        <button
+          type="button"
+          onClick={handleBack}
+          className="group mb-6 inline-flex items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-sm font-medium text-slate-400 transition-all duration-300 hover:border-indigo-400/30 hover:bg-indigo-500/10 hover:text-white"
+        >
+          <svg
+            className="h-4 w-4 transition-transform duration-300 group-hover:-translate-x-1"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M15 19l-7-7 7-7"
+            />
+          </svg>
+
+          Back
+        </button>
+
         {/* Brand Header */}
         <div className="mb-8 text-center">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-indigo-400/20 bg-indigo-500/10 text-xl font-bold text-indigo-400 shadow-lg shadow-indigo-500/10">
@@ -92,14 +124,12 @@ function Login() {
           </div>
 
           <div>
-            <div className="mb-2 flex items-center justify-between">
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-slate-300"
-              >
-                Password
-              </label>
-            </div>
+            <label
+              htmlFor="password"
+              className="mb-2 block text-sm font-medium text-slate-300"
+            >
+              Password
+            </label>
 
             <input
               id="password"
@@ -130,7 +160,7 @@ function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 focus:ring-offset-[#151B2B] disabled:cursor-not-allowed disabled:opacity-60"
+            className="group flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-indigo-500/30 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 focus:ring-offset-[#151B2B] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
           >
             {loading && (
               <svg
@@ -147,6 +177,7 @@ function Login() {
                   stroke="currentColor"
                   strokeWidth="4"
                 />
+
                 <path
                   className="opacity-75"
                   fill="currentColor"

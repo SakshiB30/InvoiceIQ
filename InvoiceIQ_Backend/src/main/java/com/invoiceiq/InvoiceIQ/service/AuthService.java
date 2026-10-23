@@ -5,14 +5,16 @@ import com.invoiceiq.InvoiceIQ.dto.RegisterRequest;
 import com.invoiceiq.InvoiceIQ.entity.User;
 import com.invoiceiq.InvoiceIQ.repository.UserRepository;
 import com.invoiceiq.InvoiceIQ.security.JwtService;
+
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
-
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
 import java.util.Locale;
 
 @Service
@@ -40,7 +42,9 @@ public class AuthService {
 
         user.setName(request.getName());
         user.setEmail(normalizedEmail);
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setPassword(
+                passwordEncoder.encode(request.getPassword())
+        );
         user.setBusinessName(request.getBusinessName());
 
         LocalDateTime now = LocalDateTime.now();
@@ -48,7 +52,17 @@ public class AuthService {
         user.setCreatedAt(now);
         user.setUpdatedAt(now);
 
-        userRepository.save(user);
+        try {
+            userRepository.save(user);
+        } catch (DuplicateKeyException exception) {
+
+            // The unique MongoDB email index protects against concurrent
+            // registration requests for the same normalized email.
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Email already registered"
+            );
+        }
     }
 
     public String login(LoginRequest request) {

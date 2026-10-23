@@ -20,53 +20,110 @@ public class DuplicateDetectionService {
             String userId
     ) {
 
-        // Primary check: user + vendor + invoice number
-        if (invoice.getInvoiceNumber() != null
-                && !invoice.getInvoiceNumber().isBlank()
-                && invoice.getVendor() != null
-                && invoice.getVendor().getName() != null) {
+        if (invoice == null
+                || userId == null
+                || userId.isBlank()) {
+
+            return noDuplicate();
+        }
+
+        String vendorName = normalize(
+                invoice.getVendor() != null
+                        ? invoice.getVendor().getName()
+                        : null
+        );
+
+        String invoiceNumber = normalize(
+                invoice.getInvoiceNumber()
+        );
+
+        // Primary check: user + vendor + invoice number.
+        if (vendorName != null && invoiceNumber != null) {
 
             Optional<Invoice> existingInvoice =
                     invoiceRepository
                             .findByUserIdAndVendor_NameAndInvoiceNumber(
                                     userId,
-                                    invoice.getVendor().getName(),
-                                    invoice.getInvoiceNumber()
+                                    vendorName,
+                                    invoiceNumber
                             );
 
-            if (existingInvoice.isPresent()) {
-                return new DuplicateResult(
-                        true,
-                        existingInvoice.get().getId(),
-                        null
+            if (existingInvoice.isPresent()
+                    && !isSameInvoice(invoice, existingInvoice.get())) {
+
+                return potentialDuplicate(
+                        existingInvoice.get().getId()
                 );
             }
         }
 
-        // Secondary check: user + vendor + date + total
-        if (invoice.getVendor() != null
-                && invoice.getVendor().getName() != null
-                && invoice.getInvoiceDate() != null) {
+        // Secondary check requires a valid date and total.
+        if (vendorName != null
+                && invoice.getInvoiceDate() != null
+                && Double.isFinite(invoice.getTotalAmount())
+                && invoice.getTotalAmount() >= 0) {
 
             List<Invoice> possibleDuplicates =
                     invoiceRepository
                             .findByUserIdAndVendor_NameAndInvoiceDateAndTotalAmount(
                                     userId,
-                                    invoice.getVendor().getName(),
+                                    vendorName,
                                     invoice.getInvoiceDate(),
                                     invoice.getTotalAmount()
                             );
 
-            if (!possibleDuplicates.isEmpty()) {
-                return new DuplicateResult(
-                        true,
-                        possibleDuplicates.get(0).getId(),
-                        null
-                );
+            if (possibleDuplicates != null) {
+
+                for (Invoice existingInvoice : possibleDuplicates) {
+
+                    if (existingInvoice != null
+                            && !isSameInvoice(invoice, existingInvoice)) {
+
+                        return potentialDuplicate(
+                                existingInvoice.getId()
+                        );
+                    }
+                }
             }
         }
 
-        // No potential duplicate found
+        return noDuplicate();
+    }
+
+    private String normalize(String value) {
+
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        return value.trim().replaceAll("\\s+", " ")
+                .toUpperCase(java.util.Locale.ROOT);
+    }
+
+    private boolean isSameInvoice(
+            Invoice invoice,
+            Invoice existingInvoice
+    ) {
+
+        String currentId = invoice.getId();
+        String existingId = existingInvoice.getId();
+
+        return currentId != null
+                && !currentId.isBlank()
+                && currentId.equals(existingId);
+    }
+
+    private DuplicateResult potentialDuplicate(String matchedInvoiceId) {
+
+        return new DuplicateResult(
+                true,
+                matchedInvoiceId,
+                null
+        );
+    }
+
+    private DuplicateResult noDuplicate() {
+
         return new DuplicateResult(
                 false,
                 null,

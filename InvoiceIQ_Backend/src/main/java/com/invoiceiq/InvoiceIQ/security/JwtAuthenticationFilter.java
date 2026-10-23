@@ -2,10 +2,14 @@ package com.invoiceiq.InvoiceIQ.security;
 
 import com.invoiceiq.InvoiceIQ.entity.User;
 import com.invoiceiq.InvoiceIQ.repository.UserRepository;
+
+import io.jsonwebtoken.JwtException;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -40,8 +44,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String authorizationHeader =
                 request.getHeader("Authorization");
 
-        if (authorizationHeader == null ||
-                !authorizationHeader.startsWith("Bearer ")) {
+        // Requests without a Bearer token continue through the filter chain.
+        // Spring Security will reject them if authentication is required.
+        if (authorizationHeader == null
+                || !authorizationHeader.startsWith("Bearer ")) {
 
             filterChain.doFilter(request, response);
             return;
@@ -51,17 +57,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         try {
 
+            // Extracting the email verifies the JWT signature and expiration
+            // through JwtService.
             String email = jwtService.extractEmail(token);
 
-            if (email != null &&
-                    SecurityContextHolder.getContext()
-                            .getAuthentication() == null) {
+            if (email != null
+                    && SecurityContextHolder.getContext()
+                    .getAuthentication() == null) {
 
                 User user = userRepository.findByEmail(email)
                         .orElse(null);
 
-                if (user != null &&
-                        jwtService.isTokenValid(token, email)) {
+                // Authenticate only if the user exists and the token
+                // is valid for that user's email.
+                if (user != null
+                        && jwtService.isTokenValid(token, email)) {
 
                     UsernamePasswordAuthenticationToken authentication =
                             new UsernamePasswordAuthenticationToken(
@@ -85,11 +95,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
             }
 
-        } catch (Exception ignored) {
-            // Invalid or malformed tokens must not authenticate the request.
-            // Protected endpoints remain subject to Spring Security authorization.
+        } catch (JwtException | IllegalArgumentException e) {
+
+            // Invalid, expired, malformed, or incorrectly signed tokens
+            // must not establish an authenticated security context.
+            SecurityContextHolder.clearContext();
         }
 
+        // Continue the filter chain. Protected endpoints still require
+        // successful authentication through Spring Security.
         filterChain.doFilter(request, response);
     }
 }

@@ -2,20 +2,31 @@ package com.invoiceiq.InvoiceIQ.security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
 import java.util.Date;
-import io.jsonwebtoken.io.Decoders;
+import java.util.Objects;
 
 @Service
 public class JwtService {
 
     private final SecretKey secretKey;
     private final long expiration;
+
+    @PostConstruct
+    public void checkJwtKeyConfiguration() {
+        System.out.println(
+                "JWT secret decoded length: "
+                        + secretKey.getEncoded().length
+                        + " bytes"
+        );
+    }
 
     public JwtService(
             @Value("${jwt.secret}") String secret,
@@ -65,16 +76,14 @@ public class JwtService {
 
             String tokenEmail = claims.getSubject();
 
-            Date expiration = claims.getExpiration();
+            Date tokenExpiration = claims.getExpiration();
 
-            return tokenEmail.equals(email)
-                    && expiration.after(new Date());
+            return Objects.equals(tokenEmail, email)
+                    && tokenExpiration != null
+                    && tokenExpiration.after(new Date());
 
         } catch (Exception e) {
             return false;
         }
     }
-
-
-
 }

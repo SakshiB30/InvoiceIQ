@@ -3,6 +3,7 @@ package com.invoiceiq.InvoiceIQ.entity;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -23,6 +24,7 @@ public class User {
     @Indexed(unique = true)
     private String email;
 
+    @ToString.Exclude
     private String password;
 
     private String businessName;

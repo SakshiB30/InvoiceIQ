@@ -2,16 +2,16 @@ package com.invoiceiq.InvoiceIQ.exception;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
-
-import org.springframework.dao.DuplicateKeyException;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -27,9 +27,13 @@ public class GlobalExceptionHandler {
             ResponseStatusException exception
     ) {
         Map<String, String> response = new LinkedHashMap<>();
-        response.put("error", exception.getReason() != null
-                ? exception.getReason()
-                : "Request failed");
+
+        response.put(
+                "error",
+                exception.getReason() != null
+                        ? exception.getReason()
+                        : "Request failed"
+        );
 
         return ResponseEntity
                 .status(exception.getStatusCode())
@@ -40,8 +44,16 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleDuplicateKeyException(
             DuplicateKeyException exception
     ) {
+        logger.warn(
+                "Database operation rejected because of a duplicate key"
+        );
+
         Map<String, String> response = new LinkedHashMap<>();
-        response.put("error", "A record with this information already exists");
+
+        response.put(
+                "error",
+                "A record with this information already exists"
+        );
 
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
@@ -73,19 +85,17 @@ public class GlobalExceptionHandler {
             HttpMessageNotReadableException exception
     ) {
         Map<String, String> response = new LinkedHashMap<>();
-        response.put("error", "Invalid request body");
+
+        response.put(
+                "error",
+                "Invalid request body"
+        );
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(response);
     }
 
-    /**
-     * Handles files that exceed the configured multipart file-size limit.
-     *
-     * application.properties:
-     * spring.servlet.multipart.max-file-size=10MB
-     */
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<Map<String, String>> handleMaxUploadSizeExceeded(
             MaxUploadSizeExceededException exception
@@ -95,6 +105,7 @@ public class GlobalExceptionHandler {
         );
 
         Map<String, String> response = new LinkedHashMap<>();
+
         response.put(
                 "error",
                 "File size exceeds the maximum allowed limit of 10 MB"
@@ -102,6 +113,42 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .status(HttpStatus.PAYLOAD_TOO_LARGE)
+                .body(response);
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, String>> handleIllegalArgumentException(
+            IllegalArgumentException exception
+    ) {
+        Map<String, String> response = new LinkedHashMap<>();
+
+        response.put(
+                "error",
+                "Invalid request parameter or value"
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(response);
+    }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<Map<String, String>> handleIllegalStateException(
+            IllegalStateException exception
+    ) {
+        Map<String, String> response = new LinkedHashMap<>();
+
+        String message = exception.getMessage();
+
+        response.put(
+                "error",
+                message != null
+                        ? message
+                        : "The requested operation cannot be completed"
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
                 .body(response);
     }
 
@@ -116,11 +163,14 @@ public class GlobalExceptionHandler {
         );
 
         Map<String, String> response = new LinkedHashMap<>();
-        response.put("error", "An unexpected server error occurred");
+
+        response.put(
+                "error",
+                "An unexpected server error occurred"
+        );
 
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(response);
     }
 }
-

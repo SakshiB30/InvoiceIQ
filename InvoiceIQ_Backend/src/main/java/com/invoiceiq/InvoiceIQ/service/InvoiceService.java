@@ -7,8 +7,12 @@ import com.invoiceiq.InvoiceIQ.entity.Invoice;
 import com.invoiceiq.InvoiceIQ.entity.InvoiceItem;
 import com.invoiceiq.InvoiceIQ.entity.ValidationResult;
 import com.invoiceiq.InvoiceIQ.repository.InvoiceRepository;
+
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -24,9 +28,12 @@ public class InvoiceService {
     private final InvoiceValidationService invoiceValidationService;
 
     public Invoice createInvoice(Invoice invoice, String userId) {
+
+        // Always associate the invoice with the authenticated user.
         invoice.setUserId(userId);
 
         LocalDateTime now = LocalDateTime.now();
+
         invoice.setCreatedAt(now);
         invoice.setUpdatedAt(now);
 
@@ -40,6 +47,7 @@ public class InvoiceService {
             LocalDate fromDate,
             LocalDate toDate
     ) {
+
         List<Invoice> invoices;
 
         if (search != null && !search.isBlank()) {
@@ -85,6 +93,7 @@ public class InvoiceService {
             String userId,
             String search
     ) {
+
         List<Invoice> invoiceNumberResults =
                 invoiceRepository
                         .findByUserIdAndInvoiceNumberContainingIgnoreCase(
@@ -107,11 +116,15 @@ public class InvoiceService {
                 .toList();
     }
 
-    public Invoice getInvoiceById(String invoiceId, String userId) {
+    public Invoice getInvoiceById(
+            String invoiceId,
+            String userId
+    ) {
+
         return invoiceRepository.findByIdAndUserId(invoiceId, userId)
                 .orElseThrow(() ->
-                        new org.springframework.web.server.ResponseStatusException(
-                                org.springframework.http.HttpStatus.NOT_FOUND,
+                        new ResponseStatusException(
+                                HttpStatus.NOT_FOUND,
                                 "Invoice not found"
                         )
                 );
@@ -122,12 +135,17 @@ public class InvoiceService {
             String userId,
             Invoice updatedInvoice
     ) {
+
         Invoice existingInvoice =
                 invoiceRepository.findByIdAndUserId(invoiceId, userId)
                         .orElseThrow(() ->
-                                new RuntimeException("Invoice not found")
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND,
+                                        "Invoice not found"
+                                )
                         );
 
+        // Update only user-editable fields.
         existingInvoice.setVendor(updatedInvoice.getVendor());
         existingInvoice.setInvoiceNumber(updatedInvoice.getInvoiceNumber());
         existingInvoice.setInvoiceDate(updatedInvoice.getInvoiceDate());
@@ -146,17 +164,26 @@ public class InvoiceService {
         return invoiceRepository.save(existingInvoice);
     }
 
-    public Invoice revalidateInvoice(String invoiceId, String userId) {
+    public Invoice revalidateInvoice(
+            String invoiceId,
+            String userId
+    ) {
+
         Invoice invoice =
                 invoiceRepository.findByIdAndUserId(invoiceId, userId)
                         .orElseThrow(() ->
-                                new RuntimeException("Invoice not found")
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND,
+                                        "Invoice not found"
+                                )
                         );
 
         List<ExtractedInvoiceItemDTO> extractedItems = new ArrayList<>();
 
         if (invoice.getItems() != null) {
+
             for (InvoiceItem item : invoice.getItems()) {
+
                 ExtractedInvoiceItemDTO extractedItem =
                         new ExtractedInvoiceItemDTO();
 
@@ -194,11 +221,18 @@ public class InvoiceService {
         return invoiceRepository.save(invoice);
     }
 
-    public Invoice confirmInvoice(String invoiceId, String userId) {
+    public Invoice confirmInvoice(
+            String invoiceId,
+            String userId
+    ) {
+
         Invoice invoice =
                 invoiceRepository.findByIdAndUserId(invoiceId, userId)
                         .orElseThrow(() ->
-                                new RuntimeException("Invoice not found")
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND,
+                                        "Invoice not found"
+                                )
                         );
 
         ValidationResult validation = invoice.getValidation();
@@ -210,7 +244,9 @@ public class InvoiceService {
         }
 
         if ("COMPLETED".equalsIgnoreCase(invoice.getProcessingStatus())) {
-            throw new IllegalStateException("Invoice is already completed");
+            throw new IllegalStateException(
+                    "Invoice is already completed"
+            );
         }
 
         invoice.setProcessingStatus("COMPLETED");
@@ -224,10 +260,14 @@ public class InvoiceService {
             String userId,
             String decision
     ) {
+
         Invoice invoice =
                 invoiceRepository.findByIdAndUserId(invoiceId, userId)
                         .orElseThrow(() ->
-                                new RuntimeException("Invoice not found")
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND,
+                                        "Invoice not found"
+                                )
                         );
 
         if (!"COMPLETED".equalsIgnoreCase(invoice.getProcessingStatus())) {
@@ -247,23 +287,32 @@ public class InvoiceService {
         if (decision == null
                 || (!"CONFIRMED_SEPARATE".equals(decision)
                 && !"CONFIRMED_DUPLICATE".equals(decision))) {
+
             throw new IllegalArgumentException(
                     "Decision must be CONFIRMED_SEPARATE or CONFIRMED_DUPLICATE"
             );
         }
 
         duplicate.setReviewDecision(decision);
+
         invoice.setDuplicate(duplicate);
         invoice.setUpdatedAt(LocalDateTime.now());
 
         return invoiceRepository.save(invoice);
     }
 
-    public void deleteInvoice(String invoiceId, String userId) {
+    public void deleteInvoice(
+            String invoiceId,
+            String userId
+    ) {
+
         Invoice invoice =
                 invoiceRepository.findByIdAndUserId(invoiceId, userId)
                         .orElseThrow(() ->
-                                new RuntimeException("Invoice not found")
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND,
+                                        "Invoice not found"
+                                )
                         );
 
         invoiceRepository.delete(invoice);

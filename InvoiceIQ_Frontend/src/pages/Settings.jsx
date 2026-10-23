@@ -4,13 +4,17 @@ import PreferencesSettings from '../components/settings/PreferencesSettings'
 
 function Settings() {
   return (
-    <div className="space-y-6">
+    <main className="min-h-full space-y-6 pb-8 text-slate-100">
       <SettingsHeader />
 
-      <ProfileSettings />
+      <section aria-label="Profile settings">
+        <ProfileSettings />
+      </section>
 
-      <PreferencesSettings />
-    </div>
+      <section aria-label="Preference settings">
+        <PreferencesSettings />
+      </section>
+    </main>
   )
 }
 

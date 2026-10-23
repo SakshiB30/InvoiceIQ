@@ -14,8 +14,13 @@ import SpendingDistribution from "../components/analytics/SpendingDistribution";
 const getDateRange = (range) => {
   const today = new Date();
 
+  // Format using local calendar dates to avoid UTC timezone shifts.
   const formatDate = (date) => {
-    return date.toISOString().split("T")[0];
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
   };
 
   switch (range) {
@@ -52,10 +57,8 @@ const getDateRange = (range) => {
     }
 
     case "THIS_QUARTER": {
-      const currentMonth = today.getMonth();
-
       const quarterStartMonth =
-        Math.floor(currentMonth / 3) * 3;
+        Math.floor(today.getMonth() / 3) * 3;
 
       const fromDate = new Date(
         today.getFullYear(),
@@ -96,10 +99,10 @@ const getDateRangeLabel = (dateRange) => {
     if (!date) return "";
 
     return new Date(`${date}T00:00:00`).toLocaleDateString(
-      "en-US",
+      "en-IN",
       {
-        month: "short",
         day: "numeric",
+        month: "short",
         year: "numeric",
       }
     );
@@ -131,18 +134,18 @@ const getDateRangeLabel = (dateRange) => {
 
 const AnalyticsLoadingSkeleton = () => {
   return (
-    <div className="animate-pulse space-y-6 p-6">
+    <div className="min-h-full animate-pulse space-y-6 bg-[#0B0F19] p-4 sm:p-6 lg:p-8">
       {/* Header */}
-      <div className="space-y-2">
-        <div className="h-7 w-40 rounded-lg bg-gray-200" />
-        <div className="h-4 w-72 rounded bg-gray-100" />
+      <div className="space-y-3">
+        <div className="h-3 w-40 rounded bg-[#22D3EE]/20" />
+        <div className="h-8 w-56 rounded-lg bg-[#1E293B]" />
+        <div className="h-4 w-72 max-w-full rounded bg-[#1E293B]" />
       </div>
 
       {/* Date Filter */}
-      <div className="flex flex-col gap-3 rounded-xl border border-gray-100 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-        <div className="h-4 w-64 rounded bg-gray-200" />
-
-        <div className="h-10 w-40 rounded-lg bg-gray-200" />
+      <div className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-[#151B2B] p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="h-4 w-64 max-w-full rounded bg-[#1E293B]" />
+        <div className="h-10 w-40 rounded-xl bg-[#1E293B]" />
       </div>
 
       {/* KPI Cards */}
@@ -150,70 +153,47 @@ const AnalyticsLoadingSkeleton = () => {
         {Array.from({ length: 4 }).map((_, index) => (
           <div
             key={index}
-            className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
+            className="rounded-2xl border border-white/10 bg-[#151B2B] p-5"
           >
-            <div className="h-4 w-28 rounded bg-gray-200" />
-
-            <div className="mt-4 h-8 w-36 rounded bg-gray-200" />
-
-            <div className="mt-3 h-3 w-24 rounded bg-gray-100" />
-
-            <div className="mt-2 h-3 w-32 rounded bg-gray-100" />
+            <div className="h-4 w-32 rounded bg-[#1E293B]" />
+            <div className="mt-5 h-8 w-36 max-w-full rounded bg-[#1E293B]" />
+            <div className="mt-3 h-3 w-28 rounded bg-[#1E293B]" />
+            <div className="mt-4 h-3 w-36 max-w-full rounded bg-[#1E293B]" />
           </div>
         ))}
       </div>
 
       {/* Monthly Spending */}
-      <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+      <div className="rounded-2xl border border-white/10 bg-[#151B2B] p-5">
         <div className="mb-6 space-y-2">
-          <div className="h-5 w-48 rounded bg-gray-200" />
-          <div className="h-3 w-72 rounded bg-gray-100" />
+          <div className="h-5 w-48 rounded bg-[#1E293B]" />
+          <div className="h-3 w-72 max-w-full rounded bg-[#1E293B]" />
         </div>
-
-        <div className="h-72 rounded-lg bg-gray-100" />
+        <div className="h-72 rounded-xl bg-[#0F172A]" />
       </div>
 
       {/* Category + Distribution */}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-          <div className="mb-6 space-y-2">
-            <div className="h-5 w-48 rounded bg-gray-200" />
-            <div className="h-3 w-72 rounded bg-gray-100" />
+        {Array.from({ length: 2 }).map((_, index) => (
+          <div
+            key={index}
+            className="rounded-2xl border border-white/10 bg-[#151B2B] p-5"
+          >
+            <div className="mb-6 space-y-2">
+              <div className="h-5 w-48 rounded bg-[#1E293B]" />
+              <div className="h-3 w-64 max-w-full rounded bg-[#1E293B]" />
+            </div>
+
+            <div className="h-72 rounded-xl bg-[#0F172A]" />
           </div>
-
-          <div className="h-72 rounded-lg bg-gray-100" />
-        </div>
-
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-          <div className="mb-6 space-y-2">
-            <div className="h-5 w-48 rounded bg-gray-200" />
-            <div className="h-3 w-72 rounded bg-gray-100" />
-          </div>
-
-          <div className="space-y-5">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <div key={index}>
-                <div className="mb-2 flex justify-between">
-                  <div className="h-4 w-24 rounded bg-gray-200" />
-                  <div className="h-4 w-12 rounded bg-gray-200" />
-                </div>
-
-                <div className="h-2 rounded-full bg-gray-100" />
-
-                <div className="mt-2 flex justify-end">
-                  <div className="h-3 w-20 rounded bg-gray-100" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        ))}
       </div>
 
       {/* Top Vendors */}
-      <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+      <div className="rounded-2xl border border-white/10 bg-[#151B2B] p-5">
         <div className="mb-6 space-y-2">
-          <div className="h-5 w-32 rounded bg-gray-200" />
-          <div className="h-3 w-72 rounded bg-gray-100" />
+          <div className="h-5 w-32 rounded bg-[#1E293B]" />
+          <div className="h-3 w-72 max-w-full rounded bg-[#1E293B]" />
         </div>
 
         <div className="space-y-4">
@@ -222,16 +202,16 @@ const AnalyticsLoadingSkeleton = () => {
               key={index}
               className="flex items-center justify-between gap-4"
             >
-              <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-lg bg-gray-200" />
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="h-10 w-10 shrink-0 rounded-xl bg-[#1E293B]" />
 
                 <div className="space-y-2">
-                  <div className="h-4 w-32 rounded bg-gray-200" />
-                  <div className="h-3 w-20 rounded bg-gray-100" />
+                  <div className="h-4 w-32 max-w-full rounded bg-[#1E293B]" />
+                  <div className="h-3 w-24 rounded bg-[#1E293B]" />
                 </div>
               </div>
 
-              <div className="h-4 w-24 rounded bg-gray-200" />
+              <div className="h-4 w-24 shrink-0 rounded bg-[#1E293B]" />
             </div>
           ))}
         </div>
@@ -285,68 +265,67 @@ const Analytics = () => {
     return <AnalyticsLoadingSkeleton />;
   }
 
+  if (error) {
+    return (
+      <div className="flex min-h-[500px] items-center justify-center bg-[#0B0F19] p-4 sm:p-6">
+        <div className="w-full max-w-md rounded-2xl border border-rose-400/20 bg-[#151B2B] p-6 text-center shadow-xl shadow-black/10 sm:p-8">
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-rose-400/20 bg-rose-400/10 text-2xl">
+            ⚠️
+          </div>
 
-if (error) {
-  return (
-    <div className="flex min-h-125 items-center justify-center p-6">
-      <div className="w-full max-w-md rounded-2xl border border-red-100 bg-white p-8 text-center shadow-sm">
-        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-red-50 text-2xl">
-          ⚠️
-        </div>
+          <h2 className="text-lg font-semibold text-[#F1F5F9]">
+            Unable to load analytics
+          </h2>
 
-        <h2 className="text-lg font-semibold text-gray-900">
-          Unable to load analytics
-        </h2>
+          <p className="mt-2 text-sm leading-6 text-[#94A3B8]">
+            We couldn't retrieve your analytics data right now.
+            Please try again.
+          </p>
 
-        <p className="mt-2 text-sm leading-6 text-gray-500">
-          We couldn't retrieve your analytics data
-          right now. Please try again.
-        </p>
+          <p className="mt-4 break-words rounded-xl border border-rose-400/10 bg-rose-400/5 px-3 py-3 text-left text-xs leading-5 text-rose-300">
+            {error}
+          </p>
 
-        <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
-          {error}
-        </p>
+          <button
+            type="button"
+            onClick={() => {
+              if (dateRange.type === "CUSTOM") {
+                if (
+                  !dateRange.fromDate ||
+                  !dateRange.toDate
+                ) {
+                  return;
+                }
 
-        <button
-          type="button"
-          onClick={() => {
-            if (dateRange.type === "CUSTOM") {
-              if (
-                !dateRange.fromDate ||
-                !dateRange.toDate
-              ) {
+                dispatch(
+                  fetchAnalytics({
+                    fromDate: dateRange.fromDate,
+                    toDate: dateRange.toDate,
+                  })
+                );
+
                 return;
               }
 
-              dispatch(
-                fetchAnalytics({
-                  fromDate: dateRange.fromDate,
-                  toDate: dateRange.toDate,
-                })
+              const { fromDate, toDate } = getDateRange(
+                dateRange.type
               );
 
-              return;
-            }
-
-            const { fromDate, toDate } =
-              getDateRange(dateRange.type);
-
-            dispatch(
-              fetchAnalytics({
-                fromDate,
-                toDate,
-              })
-            );
-          }}
-          className="mt-5 rounded-lg bg-gray-900 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2"
-        >
-          Try Again
-        </button>
+              dispatch(
+                fetchAnalytics({
+                  fromDate,
+                  toDate,
+                })
+              );
+            }}
+            className="mt-5 inline-flex items-center justify-center rounded-xl bg-[#6366F1] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/10 transition hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 focus:ring-offset-[#151B2B]"
+          >
+            Try Again
+          </button>
+        </div>
       </div>
-    </div>
-  );
-}
-
+    );
+  }
 
   const kpis = data?.kpis || {};
   const monthlySpending = data?.monthlySpending || [];
@@ -362,38 +341,44 @@ if (error) {
     Number(kpis.totalSpending || 0) > 0;
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="min-h-full space-y-6 bg-[#0B0F19] p-4 sm:p-6 lg:p-8">
       <AnalyticsHeader />
 
-      <div className="flex flex-col gap-3 rounded-xl border border-gray-100 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-gray-500">
-          {getDateRangeLabel(dateRange)}
-        </p>
+      {/* Date Range Controls */}
+      <section className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-[#151B2B] p-4 shadow-lg shadow-black/5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-sm leading-6 text-[#CBD5E1]">
+            {getDateRangeLabel(dateRange)}
+          </p>
+          <p className="mt-1 text-xs text-[#64748B]">
+            Filter your financial performance by period.
+          </p>
+        </div>
 
         <AnalyticsDateFilter
           value={dateRange}
           onChange={setDateRange}
         />
-      </div>
+      </section>
 
       {!hasAnalyticsData ? (
-        <div className="flex min-h-[400px] items-center justify-center rounded-xl border border-gray-100 bg-white p-8 shadow-sm">
+        <section className="flex min-h-[400px] items-center justify-center rounded-2xl border border-white/10 bg-[#151B2B] p-6 shadow-lg shadow-black/5 sm:p-8">
           <div className="max-w-md text-center">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-gray-100 text-2xl">
+            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-indigo-400/20 bg-indigo-500/10 text-2xl">
               📊
             </div>
 
-            <h2 className="text-lg font-semibold text-gray-800">
+            <h2 className="text-lg font-semibold text-[#F1F5F9]">
               No analytics data available
             </h2>
 
-            <p className="mt-2 text-sm leading-6 text-gray-500">
-              There are no invoice records available for
-              the selected date range. Try selecting a
-              different date range or add some invoices.
+            <p className="mt-3 text-sm leading-6 text-[#94A3B8]">
+              There are no invoice records available for the selected
+              date range. Try selecting a different date range or
+              add some invoices.
             </p>
           </div>
-        </div>
+        </section>
       ) : (
         <>
           <AnalyticsKPICards
@@ -406,9 +391,7 @@ if (error) {
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
             <CategorySpendingChart data={categorySpending} />
 
-            <SpendingDistribution
-              data={categorySpending}
-            />
+            <SpendingDistribution data={categorySpending} />
           </div>
 
           <TopVendors data={topVendors} />

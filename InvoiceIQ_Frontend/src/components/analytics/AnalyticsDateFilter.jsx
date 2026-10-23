@@ -30,7 +30,11 @@ const AnalyticsDateFilter = ({ value, onChange }) => {
   };
 
   const handleApplyCustomRange = () => {
-    if (!customFromDate || !customToDate) {
+    if (
+      !customFromDate ||
+      !customToDate ||
+      customFromDate > customToDate
+    ) {
       return;
     }
 
@@ -52,15 +56,21 @@ const AnalyticsDateFilter = ({ value, onChange }) => {
     });
   };
 
-  const isCustomRange =
-    value.type === "CUSTOM";
+  const isCustomRange = value.type === "CUSTOM";
+
+  const inputClasses =
+    "w-full rounded-xl border border-white/10 bg-[#0B0F19] px-3 py-2.5 text-sm text-[#F1F5F9] outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20 [color-scheme:dark]";
+
+  const labelClasses =
+    "text-xs font-medium tracking-wide text-[#94A3B8]";
 
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-      <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+      {/* Preset Range */}
+      <div className="flex min-w-0 flex-col gap-1.5">
         <label
           htmlFor="analytics-date-range"
-          className="text-sm font-medium text-gray-700"
+          className="text-xs font-medium tracking-wide text-[#94A3B8]"
         >
           Date Range
         </label>
@@ -69,40 +79,24 @@ const AnalyticsDateFilter = ({ value, onChange }) => {
           id="analytics-date-range"
           value={value.type}
           onChange={handleRangeChange}
-          className="rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+          className={`${inputClasses} min-w-[155px] cursor-pointer`}
         >
-          <option value="ALL_TIME">
-            All Time
-          </option>
-
-          <option value="THIS_MONTH">
-            This Month
-          </option>
-
-          <option value="LAST_MONTH">
-            Last Month
-          </option>
-
-          <option value="THIS_QUARTER">
-            This Quarter
-          </option>
-
-          <option value="THIS_YEAR">
-            This Year
-          </option>
-
-          <option value="CUSTOM">
-            Custom Range
-          </option>
+          <option value="ALL_TIME">All Time</option>
+          <option value="THIS_MONTH">This Month</option>
+          <option value="LAST_MONTH">Last Month</option>
+          <option value="THIS_QUARTER">This Quarter</option>
+          <option value="THIS_YEAR">This Year</option>
+          <option value="CUSTOM">Custom Range</option>
         </select>
       </div>
 
+      {/* Custom Range Controls */}
       {isCustomRange && (
         <>
-          <div className="flex flex-col gap-1.5">
+          <div className="flex min-w-0 flex-col gap-1.5">
             <label
               htmlFor="analytics-from-date"
-              className="text-xs font-medium text-gray-500"
+              className={labelClasses}
             >
               From
             </label>
@@ -113,18 +107,16 @@ const AnalyticsDateFilter = ({ value, onChange }) => {
               value={customFromDate}
               max={customToDate || undefined}
               onChange={(e) =>
-                setCustomFromDate(
-                  e.target.value
-                )
+                setCustomFromDate(e.target.value)
               }
-              className="rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className={inputClasses}
             />
           </div>
 
-          <div className="flex flex-col gap-1.5">
+          <div className="flex min-w-0 flex-col gap-1.5">
             <label
               htmlFor="analytics-to-date"
-              className="text-xs font-medium text-gray-500"
+              className={labelClasses}
             >
               To
             </label>
@@ -135,11 +127,9 @@ const AnalyticsDateFilter = ({ value, onChange }) => {
               value={customToDate}
               min={customFromDate || undefined}
               onChange={(e) =>
-                setCustomToDate(
-                  e.target.value
-                )
+                setCustomToDate(e.target.value)
               }
-              className="rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className={inputClasses}
             />
           </div>
 
@@ -148,9 +138,10 @@ const AnalyticsDateFilter = ({ value, onChange }) => {
             onClick={handleApplyCustomRange}
             disabled={
               !customFromDate ||
-              !customToDate
+              !customToDate ||
+              customFromDate > customToDate
             }
-            className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center justify-center rounded-xl bg-[#6366F1] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/10 transition hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 focus:ring-offset-[#151B2B] disabled:cursor-not-allowed disabled:opacity-40"
           >
             Apply
           </button>
@@ -158,7 +149,7 @@ const AnalyticsDateFilter = ({ value, onChange }) => {
           <button
             type="button"
             onClick={handleReset}
-            className="rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition hover:bg-gray-50 hover:text-gray-800"
+            className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm font-medium text-[#CBD5E1] transition hover:border-white/20 hover:bg-white/[0.07] hover:text-white focus:outline-none focus:ring-2 focus:ring-indigo-400/50"
           >
             Reset
           </button>

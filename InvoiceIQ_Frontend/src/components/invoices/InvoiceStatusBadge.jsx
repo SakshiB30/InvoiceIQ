@@ -10,7 +10,9 @@ function InvoiceStatusBadge({ invoice }) {
     if (processingStatus === 'COMPLETED') {
       return {
         label: 'Verified',
-        className: 'bg-green-100 text-green-700',
+        className:
+          'border-emerald-500/20 bg-emerald-500/10 text-emerald-300',
+        dotClassName: 'bg-emerald-400',
       }
     }
 
@@ -21,7 +23,9 @@ function InvoiceStatusBadge({ invoice }) {
     ) {
       return {
         label: 'Processing',
-        className: 'bg-yellow-100 text-yellow-700',
+        className:
+          'border-amber-500/20 bg-amber-500/10 text-amber-300',
+        dotClassName: 'bg-amber-400 animate-pulse',
       }
     }
 
@@ -29,7 +33,9 @@ function InvoiceStatusBadge({ invoice }) {
     if (validationValid === false) {
       return {
         label: 'Needs Review',
-        className: 'bg-orange-100 text-orange-700',
+        className:
+          'border-orange-500/20 bg-orange-500/10 text-orange-300',
+        dotClassName: 'bg-orange-400',
       }
     }
 
@@ -37,14 +43,18 @@ function InvoiceStatusBadge({ invoice }) {
     if (processingStatus === 'PENDING') {
       return {
         label: 'Pending Review',
-        className: 'bg-blue-100 text-blue-700',
+        className:
+          'border-indigo-500/20 bg-indigo-500/10 text-indigo-300',
+        dotClassName: 'bg-indigo-400',
       }
     }
 
     // Fallback for unknown or missing status
     return {
       label: 'Pending Review',
-      className: 'bg-slate-100 text-slate-600',
+      className:
+        'border-slate-600/40 bg-slate-700/30 text-slate-300',
+      dotClassName: 'bg-slate-400',
     }
   }
 
@@ -52,8 +62,13 @@ function InvoiceStatusBadge({ invoice }) {
 
   return (
     <span
-      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${status.className}`}
+      className={`inline-flex items-center gap-2 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium ${status.className}`}
     >
+      <span
+        className={`h-1.5 w-1.5 shrink-0 rounded-full ${status.dotClassName}`}
+        aria-hidden="true"
+      />
+
       {status.label}
     </span>
   )

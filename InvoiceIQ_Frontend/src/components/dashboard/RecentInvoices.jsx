@@ -1,275 +1,269 @@
 import { useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 
-function formatDate(date) {
-  if (!date) {
+function StatusBadge({ invoice }) {
+  const status = invoice?.processingStatus
+  const isValid = invoice?.validationResult?.valid
+
+  let label = 'Pending'
+  let styles = 'border-amber-400/20 bg-amber-400/10 text-amber-300'
+  let dot = 'bg-amber-300'
+
+  if (status === 'COMPLETED') {
+    label = 'Verified'
+    styles = 'border-emerald-400/20 bg-emerald-400/10 text-emerald-300'
+    dot = 'bg-emerald-300'
+  } else if (isValid === false) {
+    label = 'Review'
+    styles = 'border-rose-400/20 bg-rose-400/10 text-rose-300'
+    dot = 'bg-rose-300'
+  } else if (
+    status === 'PENDING' ||
+    status === 'PROCESSING' ||
+    status === 'UPLOADING'
+  ) {
+    label = 'Pending'
+  }
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium ${styles}`}
+    >
+      <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
+      {label}
+    </span>
+  )
+}
+
+function formatCurrency(amount) {
+  const value = Number(amount)
+
+  if (!Number.isFinite(value)) {
     return '—'
   }
 
-  const parsedDate = new Date(date)
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 2,
+  }).format(value)
+}
 
-  if (Number.isNaN(parsedDate.getTime())) {
+function formatDate(dateValue) {
+  if (!dateValue) return '—'
+
+  const date = new Date(dateValue)
+
+  if (Number.isNaN(date.getTime())) {
     return '—'
   }
 
-  return parsedDate.toLocaleDateString('en-IN', {
+  return date.toLocaleDateString('en-IN', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
   })
 }
 
-function formatAmount(amount) {
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 2,
-  }).format(Number(amount) || 0)
-}
-
-function getStatus(invoice) {
-  if (invoice.processingStatus === 'COMPLETED') {
-    return 'Verified'
-  }
-
-  if (invoice.validation?.valid === false) {
-    return 'Review'
-  }
-
-  if (
-    invoice.processingStatus === 'PENDING' ||
-    invoice.processingStatus === 'PROCESSING' ||
-    invoice.processingStatus === 'UPLOADING'
-  ) {
-    return 'Pending'
-  }
-
-  return 'Pending'
-}
-
-function getVendorName(invoice) {
-  return (
-    invoice.vendor?.name ||
-    invoice.vendorName ||
-    'Unknown Vendor'
-  )
-}
-
-function getVendorInitial(invoice) {
-  const vendorName = getVendorName(invoice)
-
-  if (!vendorName || vendorName === 'Unknown Vendor') {
-    return '?'
-  }
-
-  return vendorName.charAt(0).toUpperCase()
-}
-
 function RecentInvoices() {
   const navigate = useNavigate()
 
   const {
-    invoices,
+    invoices = [],
     loading,
     error,
   } = useSelector((state) => state.invoices)
 
   const recentInvoices = [...invoices]
     .sort((a, b) => {
-      const dateA = new Date(
-        a.createdAt || a.invoiceDate || 0,
-      )
-
-      const dateB = new Date(
-        b.createdAt || b.invoiceDate || 0,
-      )
+      const dateA = new Date(a.createdAt || a.invoiceDate || 0).getTime()
+      const dateB = new Date(b.createdAt || b.invoiceDate || 0).getTime()
 
       return dateB - dateA
     })
     .slice(0, 5)
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-
-      {/* Header */}
-      <div className="flex flex-col gap-3 border-b border-slate-200 p-6 sm:flex-row sm:items-center sm:justify-between">
+    <section className="overflow-hidden rounded-2xl border border-[#263148] bg-[#151B2B] shadow-[0_8px_24px_rgba(0,0,0,0.18)]">
+      <div className="flex flex-col justify-between gap-3 border-b border-[#263148] px-5 py-5 sm:flex-row sm:items-center sm:px-6">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">
-            Recent Invoices
+          <h2 className="text-base font-semibold tracking-tight text-slate-100 sm:text-lg">
+            Recent invoices
           </h2>
-
-          <p className="mt-1 text-sm text-slate-500">
-            Your latest uploaded invoices
+          <p className="mt-1 text-sm text-slate-400">
+            Your latest invoice activity in one place.
           </p>
         </div>
 
         <button
           type="button"
           onClick={() => navigate('/invoices')}
-          className="self-start text-sm font-medium text-yellow-600 transition hover:text-yellow-700 sm:self-auto"
+          className="inline-flex items-center justify-center gap-2 self-start rounded-lg border border-[#394765] bg-[#1B2336] px-3.5 py-2 text-sm font-medium text-slate-200 transition hover:border-indigo-400/40 hover:bg-indigo-500/10 hover:text-indigo-200 sm:self-center"
         >
-          View All →
+          View all invoices
+          <span aria-hidden="true">→</span>
         </button>
       </div>
 
-      {/* Loading */}
-      {loading && (
-        <div className="p-10 text-center">
-          <div className="mx-auto h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-slate-700" />
+      {loading && invoices.length === 0 ? (
+        <div className="space-y-3 p-5 sm:p-6" role="status" aria-live="polite">
+          <p className="text-sm text-slate-400">Loading recent invoices...</p>
 
-          <p className="mt-3 text-sm text-slate-500">
-            Loading recent invoices...
-          </p>
-        </div>
-      )}
-
-      {/* Error */}
-      {!loading && error && (
-        <div className="p-10 text-center">
-          <div className="text-3xl">⚠️</div>
-
-          <p className="mt-3 text-sm font-medium text-red-600">
-            Failed to load recent invoices.
-          </p>
-
-          <p className="mt-1 text-xs text-slate-500">
-            Please refresh the page and try again.
-          </p>
-        </div>
-      )}
-
-      {/* Empty */}
-      {!loading &&
-        !error &&
-        recentInvoices.length === 0 && (
-          <div className="p-10 text-center">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-yellow-100 text-2xl">
-              📄
+          {[1, 2, 3].map((item) => (
+            <div
+              key={item}
+              className="flex animate-pulse items-center gap-4 rounded-xl border border-[#263148] bg-[#0F172A]/50 p-4"
+            >
+              <div className="h-10 w-10 shrink-0 rounded-xl bg-slate-700/60" />
+              <div className="flex-1 space-y-2">
+                <div className="h-3 w-36 max-w-full rounded bg-slate-700/60" />
+                <div className="h-3 w-24 rounded bg-slate-800" />
+              </div>
+              <div className="h-5 w-20 rounded bg-slate-700/60" />
             </div>
+          ))}
+        </div>
+      ) : error && invoices.length === 0 ? (
+        <div className="px-5 py-12 text-center sm:px-6">
+          <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl border border-rose-400/20 bg-rose-400/10 text-lg text-rose-300">
+            !
+          </div>
+          <h3 className="mt-3 text-sm font-semibold text-slate-200">
+            Could not load invoices
+          </h3>
+          <p className="mt-1 text-sm text-slate-400">
+            Please refresh the page or try again shortly.
+          </p>
+        </div>
+      ) : recentInvoices.length === 0 ? (
+        <div className="px-5 py-12 text-center sm:px-6">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-indigo-400/20 bg-indigo-400/10 text-xl text-indigo-300">
+            ▤
+          </div>
+          <h3 className="mt-4 text-sm font-semibold text-slate-200">
+            No invoices yet
+          </h3>
+          <p className="mx-auto mt-1 max-w-sm text-sm text-slate-400">
+            Upload your first invoice to start tracking your business spending.
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate('/invoices')}
+            className="iq-primary-button mt-4"
+          >
+            Go to invoices
+            <span aria-hidden="true">→</span>
+          </button>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="min-w-[620px] text-left">
+            <thead>
+              <tr className="border-b border-[#263148] bg-[#0F172A]/60">
+                <th className="px-5 py-3.5 text-[11px] font-semibold uppercase tracking-wider sm:px-6">
+                  Vendor
+                </th>
+                <th className="px-5 py-3.5 text-[11px] font-semibold uppercase tracking-wider">
+                  Invoice date
+                </th>
+                <th className="px-5 py-3.5 text-[11px] font-semibold uppercase tracking-wider">
+                  Amount
+                </th>
+                <th className="px-5 py-3.5 text-[11px] font-semibold uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-5 py-3.5 text-right text-[11px] font-semibold uppercase tracking-wider">
+                  <span className="sr-only">Open invoice</span>
+                </th>
+              </tr>
+            </thead>
 
-            <p className="mt-4 text-sm font-semibold text-slate-900">
-              No invoices yet
-            </p>
+            <tbody className="divide-y divide-[#263148]/80">
+              {recentInvoices.map((invoice) => {
+                const vendorName =
+                  invoice.vendor?.name ||
+                  invoice.vendorName ||
+                  'Unknown Vendor'
 
-            <p className="mt-1 text-sm text-slate-500">
-              Upload your first invoice to start tracking your expenses.
+                const invoiceId = invoice.id
+
+                return (
+                  <tr
+                    key={invoiceId}
+                    onClick={() => navigate(`/invoices/${invoiceId}`)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        navigate(`/invoices/${invoiceId}`)
+                      }
+                    }}
+                    role="link"
+                    tabIndex={0}
+                    aria-label={`Open invoice from ${vendorName}`}
+                    className="group cursor-pointer transition-colors duration-150 hover:bg-[#1B2336]/80 focus-visible:bg-[#1B2336] focus-visible:outline-none"
+                  >
+                    <td className="px-5 py-4 sm:px-6">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-indigo-400/15 bg-indigo-500/10 text-sm font-semibold text-indigo-300">
+                          {String(vendorName).charAt(0).toUpperCase()}
+                        </div>
+
+                        <div className="min-w-0">
+                          <p
+                            title={vendorName}
+                            className="max-w-[190px] truncate text-sm font-medium text-slate-200 transition-colors group-hover:text-indigo-200"
+                          >
+                            {vendorName}
+                          </p>
+                          <p className="mt-0.5 text-xs text-slate-500">
+                            Invoice #{invoice.invoiceNumber || '—'}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+
+                    <td className="whitespace-nowrap px-5 py-4 text-sm text-slate-400">
+                      {formatDate(invoice.invoiceDate)}
+                    </td>
+
+                    <td className="whitespace-nowrap px-5 py-4 text-sm font-semibold text-slate-200">
+                      {formatCurrency(invoice.totalAmount)}
+                    </td>
+
+                    <td className="px-5 py-4">
+                      <StatusBadge invoice={invoice} />
+                    </td>
+
+                    <td className="px-5 py-4 text-right">
+                      <span
+                        className="text-lg text-slate-600 transition-colors group-hover:text-indigo-300"
+                        aria-hidden="true"
+                      >
+                        →
+                      </span>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+
+          <div className="flex items-center justify-between gap-3 border-t border-[#263148] px-5 py-3.5 sm:px-6">
+            <p className="text-xs text-slate-500">
+              Showing {recentInvoices.length} of {invoices.length} invoices
             </p>
 
             <button
               type="button"
               onClick={() => navigate('/invoices')}
-              className="mt-5 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
+              className="text-xs font-semibold text-indigo-300 transition hover:text-indigo-200"
             >
-              Upload Invoice
+              All invoices →
             </button>
           </div>
-        )}
-
-      {/* Desktop Table */}
-      {!loading &&
-        !error &&
-        recentInvoices.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[700px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50">
-                  <th className="px-6 py-3 font-medium text-slate-500">
-                    Invoice
-                  </th>
-
-                  <th className="px-6 py-3 font-medium text-slate-500">
-                    Vendor
-                  </th>
-
-                  <th className="px-6 py-3 font-medium text-slate-500">
-                    Date
-                  </th>
-
-                  <th className="px-6 py-3 font-medium text-slate-500">
-                    Amount
-                  </th>
-
-                  <th className="px-6 py-3 font-medium text-slate-500">
-                    Status
-                  </th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {recentInvoices.map((invoice) => {
-                  const status = getStatus(invoice)
-                  const vendorName = getVendorName(invoice)
-
-                  return (
-                    <tr
-                      key={invoice.id}
-                      onClick={() =>
-                        navigate(`/invoices/${invoice.id}`)
-                      }
-                      className="cursor-pointer border-b border-slate-100 transition last:border-0 hover:bg-slate-50"
-                    >
-                      {/* Invoice */}
-                      <td className="px-6 py-4">
-                        <span className="font-semibold text-slate-900">
-                          {invoice.invoiceNumber || '—'}
-                        </span>
-                      </td>
-
-                      {/* Vendor */}
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-yellow-100 text-sm font-semibold text-yellow-700">
-                            {getVendorInitial(invoice)}
-                          </div>
-
-                          <span className="max-w-[180px] truncate text-slate-600">
-                            {vendorName}
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* Date */}
-                      <td className="px-6 py-4 text-slate-500">
-                        {formatDate(invoice.invoiceDate)}
-                      </td>
-
-                      {/* Amount */}
-                      <td className="px-6 py-4">
-                        <span className="font-semibold text-slate-900">
-                          {formatAmount(invoice.totalAmount)}
-                        </span>
-                      </td>
-
-                      {/* Status */}
-                      <td className="px-6 py-4">
-                        <StatusBadge status={status} />
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-    </div>
-  )
-}
-
-function StatusBadge({ status }) {
-  const styles = {
-    Verified: 'bg-green-100 text-green-700',
-    Pending: 'bg-yellow-100 text-yellow-700',
-    Review: 'bg-orange-100 text-orange-700',
-  }
-
-  return (
-    <span
-      className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${
-        styles[status] || 'bg-slate-100 text-slate-600'
-      }`}
-    >
-      {status}
-    </span>
+        </div>
+      )}
+    </section>
   )
 }
 

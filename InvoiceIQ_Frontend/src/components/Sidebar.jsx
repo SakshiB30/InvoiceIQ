@@ -7,27 +7,27 @@ const menuItems = [
   {
     name: 'Dashboard',
     path: '/',
-    icon: '📊',
+    icon: '▦',
   },
   {
     name: 'Invoices',
     path: '/invoices',
-    icon: '📄',
+    icon: '▤',
   },
   {
     name: 'Expenses',
     path: '/expenses',
-    icon: '💰',
+    icon: '↗',
   },
   {
     name: 'Analytics',
     path: '/analytics',
-    icon: '📈',
+    icon: '⌁',
   },
   {
     name: 'Insights',
     path: '/insights',
-    icon: '💡',
+    icon: '✧',
   },
 ]
 
@@ -40,46 +40,56 @@ function Sidebar() {
     navigate('/login')
   }
 
-  return (
-    <aside className="sticky top-16 hidden h-[calc(100vh-4rem)] w-64 shrink-0 border-r border-slate-200 bg-white md:block">
-      <div className="flex h-full flex-col">
+  const navLinkClasses = ({ isActive }) =>
+    [
+      'group relative flex w-full items-center gap-3 rounded-xl px-3 py-3',
+      'text-sm font-medium transition-all duration-200',
+      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400',
+      isActive
+        ? 'bg-indigo-500/15 text-indigo-300'
+        : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100',
+    ].join(' ')
 
-        {/* Navigation */}
-        <nav className="flex-1 overflow-hidden p-4">
-          <p className="mb-3 px-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+  return (
+    <aside className="sticky top-16 hidden h-[calc(100vh-4rem)] w-64 shrink-0 border-r border-[#263148] bg-[#0F172A] md:block">
+      <div className="flex h-full flex-col">
+        {/* Workspace navigation */}
+        <nav aria-label="Main navigation" className="flex-1 overflow-hidden px-4 py-6">
+          <p className="mb-4 px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
             Workspace
           </p>
 
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             {menuItems.map((item) => (
               <NavLink
                 key={item.name}
                 to={item.path}
                 end={item.path === '/'}
-                className={({ isActive }) =>
-                  `group flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition ${
-                    isActive
-                      ? 'bg-yellow-100 text-slate-900 shadow-sm'
-                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                  }`
-                }
+                className={navLinkClasses}
               >
                 {({ isActive }) => (
                   <>
+                    {isActive && (
+                      <span className="absolute bottom-2.5 left-0 top-2.5 w-[3px] rounded-r-full bg-indigo-400" />
+                    )}
+
                     <span
-                      className={`flex h-8 w-8 items-center justify-center rounded-md text-base transition ${
+                      className={[
+                        'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
+                        'text-xl transition-all duration-200',
                         isActive
-                          ? 'bg-yellow-200'
-                          : 'bg-slate-100 group-hover:bg-slate-200'
-                      }`}
+                          ? 'bg-indigo-500/20 text-indigo-300'
+                          : 'bg-slate-800/70 text-slate-400 group-hover:bg-slate-700 group-hover:text-slate-200',
+                      ].join(' ')}
+                      aria-hidden="true"
                     >
                       {item.icon}
                     </span>
 
-                    <span>{item.name}</span>
+                    <span className="flex-1">{item.name}</span>
 
                     {isActive && (
-                      <span className="ml-auto h-2 w-2 rounded-full bg-yellow-500" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.6)]" />
                     )}
                   </>
                 )}
@@ -88,51 +98,69 @@ function Sidebar() {
           </div>
         </nav>
 
-        {/* Bottom Actions */}
-        <div className="border-t border-slate-200 p-4">
-
-          <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+        {/* Account actions */}
+        <div className="border-t border-[#263148] p-4">
+          <p className="mb-4 px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
             Account
           </p>
 
-          {/* Settings */}
-          <NavLink
-            to="/settings"
-            className={({ isActive }) =>
-              `flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition ${
-                isActive
-                  ? 'bg-yellow-100 text-slate-900 shadow-sm'
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-              }`
-            }
-          >
-            {({ isActive }) => (
-              <>
-                <span
-                  className={`flex h-8 w-8 items-center justify-center rounded-md text-base ${
-                    isActive ? 'bg-yellow-200' : 'bg-slate-100'
-                  }`}
-                >
-                  ⚙️
-                </span>
+          <div className="space-y-1.5">
+            <NavLink to="/settings" className={navLinkClasses}>
+              {({ isActive }) => (
+                <>
+                  {isActive && (
+                    <span className="absolute bottom-2.5 left-0 top-2.5 w-[3px] rounded-r-full bg-indigo-400" />
+                  )}
 
-                <span>Settings</span>
-              </>
-            )}
-          </NavLink>
+                  <span
+                    className={[
+                      'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
+                      'text-lg transition-all duration-200',
+                      isActive
+                        ? 'bg-indigo-500/20 text-indigo-300'
+                        : 'bg-slate-800/70 text-slate-400 group-hover:bg-slate-700 group-hover:text-slate-200',
+                    ].join(' ')}
+                    aria-hidden="true"
+                  >
+                    ⚙
+                  </span>
 
-          {/* Logout */}
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="mt-1 flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-red-500 transition hover:bg-red-50"
-          >
-            <span className="flex h-8 w-8 items-center justify-center rounded-md bg-red-50 text-base">
-              🚪
-            </span>
+                  <span className="flex-1">Settings</span>
 
-            <span>Logout</span>
-          </button>
+                  {isActive && (
+                    <span className="h-1.5 w-1.5 rounded-full bg-indigo-400" />
+                  )}
+                </>
+              )}
+            </NavLink>
+
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-400 transition-all duration-200 hover:bg-rose-500/10 hover:text-rose-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
+            >
+              <span
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-800/70 text-lg text-slate-400 transition-colors group-hover:bg-rose-500/15 group-hover:text-rose-300"
+                aria-hidden="true"
+              >
+                ↪
+              </span>
+
+              <span>Logout</span>
+            </button>
+          </div>
+
+          <div className="mt-5 rounded-xl border border-[#263148] bg-[#151B2B] px-3 py-3">
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.4)]" />
+              <span className="text-xs font-medium text-slate-300">
+                Workspace active
+              </span>
+            </div>
+            <p className="mt-1 pl-4 text-[11px] text-slate-500">
+              InvoiceIQ · Finance workspace
+            </p>
+          </div>
         </div>
       </div>
     </aside>

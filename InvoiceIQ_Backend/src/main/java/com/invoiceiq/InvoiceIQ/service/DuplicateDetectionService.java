@@ -7,11 +7,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Optional;
+import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
 public class DuplicateDetectionService {
+
 
     private final InvoiceRepository invoiceRepository;
 
@@ -37,52 +38,77 @@ public class DuplicateDetectionService {
                 invoice.getInvoiceNumber()
         );
 
-        // Primary check: user + vendor + invoice number.
+        // Retrieve only this user's invoices.
+        List<Invoice> userInvoices =
+                invoiceRepository.findByUserId(userId);
+
+        if (userInvoices == null || userInvoices.isEmpty()) {
+            return noDuplicate();
+        }
+
+        // Primary check: normalized vendor + invoice number.
         if (vendorName != null && invoiceNumber != null) {
 
-            Optional<Invoice> existingInvoice =
-                    invoiceRepository
-                            .findByUserIdAndVendor_NameAndInvoiceNumber(
-                                    userId,
-                                    vendorName,
-                                    invoiceNumber
-                            );
+            for (Invoice existingInvoice : userInvoices) {
 
-            if (existingInvoice.isPresent()
-                    && !isSameInvoice(invoice, existingInvoice.get())) {
+                if (existingInvoice == null
+                        || isSameInvoice(invoice, existingInvoice)) {
+                    continue;
+                }
 
-                return potentialDuplicate(
-                        existingInvoice.get().getId()
+                String existingVendorName = normalize(
+                        existingInvoice.getVendor() != null
+                                ? existingInvoice.getVendor().getName()
+                                : null
                 );
+
+                String existingInvoiceNumber = normalize(
+                        existingInvoice.getInvoiceNumber()
+                );
+
+                if (vendorName.equals(existingVendorName)
+                        && invoiceNumber.equals(existingInvoiceNumber)) {
+
+                    return potentialDuplicate(
+                            existingInvoice.getId()
+                    );
+                }
             }
         }
 
-        // Secondary check requires a valid date and total.
+        // Secondary check: normalized vendor + exact date + exact total.
+        // Preserve the existing date-and-total matching behavior.
         if (vendorName != null
                 && invoice.getInvoiceDate() != null
                 && Double.isFinite(invoice.getTotalAmount())
                 && invoice.getTotalAmount() >= 0) {
 
-            List<Invoice> possibleDuplicates =
-                    invoiceRepository
-                            .findByUserIdAndVendor_NameAndInvoiceDateAndTotalAmount(
-                                    userId,
-                                    vendorName,
-                                    invoice.getInvoiceDate(),
-                                    invoice.getTotalAmount()
-                            );
+            for (Invoice existingInvoice : userInvoices) {
 
-            if (possibleDuplicates != null) {
+                if (existingInvoice == null
+                        || isSameInvoice(invoice, existingInvoice)) {
+                    continue;
+                }
 
-                for (Invoice existingInvoice : possibleDuplicates) {
+                String existingVendorName = normalize(
+                        existingInvoice.getVendor() != null
+                                ? existingInvoice.getVendor().getName()
+                                : null
+                );
 
-                    if (existingInvoice != null
-                            && !isSameInvoice(invoice, existingInvoice)) {
+                if (vendorName.equals(existingVendorName)
+                        && invoice.getInvoiceDate().equals(
+                        existingInvoice.getInvoiceDate()
+                )
+                        && Double.isFinite(existingInvoice.getTotalAmount())
+                        && Double.compare(
+                        invoice.getTotalAmount(),
+                        existingInvoice.getTotalAmount()
+                ) == 0) {
 
-                        return potentialDuplicate(
-                                existingInvoice.getId()
-                        );
-                    }
+                    return potentialDuplicate(
+                            existingInvoice.getId()
+                    );
                 }
             }
         }
@@ -96,8 +122,9 @@ public class DuplicateDetectionService {
             return null;
         }
 
-        return value.trim().replaceAll("\\s+", " ")
-                .toUpperCase(java.util.Locale.ROOT);
+        return value.trim()
+                .replaceAll("\\s+", " ")
+                .toUpperCase(Locale.ROOT);
     }
 
     private boolean isSameInvoice(
@@ -113,7 +140,9 @@ public class DuplicateDetectionService {
                 && currentId.equals(existingId);
     }
 
-    private DuplicateResult potentialDuplicate(String matchedInvoiceId) {
+    private DuplicateResult potentialDuplicate(
+            String matchedInvoiceId
+    ) {
 
         return new DuplicateResult(
                 true,
@@ -130,4 +159,6 @@ public class DuplicateDetectionService {
                 null
         );
     }
+
+
 }

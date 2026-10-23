@@ -24,8 +24,10 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor
 public class InvoiceService {
 
+
     private final InvoiceRepository invoiceRepository;
     private final InvoiceValidationService invoiceValidationService;
+    private final DuplicateDetectionService duplicateDetectionService;
 
     public Invoice createInvoice(Invoice invoice, String userId) {
 
@@ -159,6 +161,20 @@ public class InvoiceService {
         // Editing invalidates the previous validation result.
         existingInvoice.setProcessingStatus("PENDING");
         existingInvoice.setValidation(null);
+
+        // Recalculate duplicate status using this user's invoices.
+        DuplicateResult refreshedDuplicate =
+                duplicateDetectionService.checkDuplicate(
+                        existingInvoice,
+                        userId
+                );
+
+        // A previous review decision must not survive an edit.
+        if (refreshedDuplicate != null) {
+            refreshedDuplicate.setReviewDecision(null);
+        }
+
+        existingInvoice.setDuplicate(refreshedDuplicate);
         existingInvoice.setUpdatedAt(LocalDateTime.now());
 
         return invoiceRepository.save(existingInvoice);
@@ -212,10 +228,25 @@ public class InvoiceService {
         extractedInvoice.setTax(invoice.getTax());
         extractedInvoice.setTotalAmount(invoice.getTotalAmount());
 
+        // Revalidate the current invoice details.
         ValidationResult validationResult =
                 invoiceValidationService.validate(extractedInvoice);
 
         invoice.setValidation(validationResult);
+
+        // Recalculate duplicate status for the authenticated user.
+        DuplicateResult refreshedDuplicate =
+                duplicateDetectionService.checkDuplicate(
+                        invoice,
+                        userId
+                );
+
+        // Clear any previous review decision after recalculation.
+        if (refreshedDuplicate != null) {
+            refreshedDuplicate.setReviewDecision(null);
+        }
+
+        invoice.setDuplicate(refreshedDuplicate);
         invoice.setUpdatedAt(LocalDateTime.now());
 
         return invoiceRepository.save(invoice);
@@ -317,4 +348,6 @@ public class InvoiceService {
 
         invoiceRepository.delete(invoice);
     }
+
+
 }

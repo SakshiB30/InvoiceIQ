@@ -1011,3 +1011,87 @@ Current immediate task: Verify frontend invoice processing after backend startup
 Next planned milestone: Backend Authentication and Authorization Audit.
 
 
+## 14. QA and Security Audit — 2026-10-23
+
+### 14.1 Repository discovery and reports
+
+The user supplied the complete application testing, security audit, and QA brief. Repository discovery confirmed:
+
+* Backend: Spring Boot 4.1.1, Java 25, Maven, Spring Security, JWT, MongoDB, Tess4J, PDFBox, and Gemini integration.
+* Frontend: React 19, Vite 8, Redux Toolkit, React Router, Axios, Tailwind CSS, and Recharts.
+* Existing backend tests: `InvoiceIqApplicationTests.contextLoads` and `JwtServiceTest.expiredTokenShouldBeRejected`.
+* Frontend scripts include lint/build; no frontend test runner or browser E2E framework is declared.
+* The working tree had no prior changes when inspected. One targeted backend controller change was made after review demonstrated a mass-assignment issue; no unrelated application files were changed.
+* A temporary effort to add direct JWT service tests failed at test compilation because the test compiler and a direct `javac` probe could not resolve `JwtService` from `target/classes`. The experiment and scratch file were removed, and the original test source was restored. No new automated test files are present yet; the final existing suite was rerun and passed.
+
+Created the five requested initial audit deliverables:
+
+* `docs/testing/INVOICEIQ_TEST_PLAN.md`
+* `docs/testing/INVOICEIQ_TEST_RESULTS.md`
+* `docs/testing/INVOICEIQ_SECURITY_AUDIT.md`
+* `docs/testing/INVOICEIQ_BUG_REPORT.md`
+* `docs/testing/INVOICEIQ_PRODUCTION_READINESS.md`
+
+* `docs/testing/INVOICEIQ_TEST_MATRIX.md` — per-scenario register for all 391 numbered cases (53 PASS, 36 NEEDS REVIEW, 302 NOT RUN).
+These are first-pass reports; the matrix explicitly marks the remaining unexecuted scenarios. Throwaway test records exist only in isolated audit databases, and the configured `invoiceiq` database was not mutated.
+
+### 14.2 Commands and observed results
+
+| Command / check | Result |
+| --- | --- |
+| `npm run build` in `InvoiceIQ_Frontend` | PASS. Vite transformed 705 modules and built successfully. Main JS output was 832.80 kB minified and triggered the 500 kB advisory. |
+| `npm run lint` in `InvoiceIQ_Frontend` | FAIL. Three `react-hooks/set-state-in-effect` errors in `ExpenseFilters.jsx:102`, `InvoiceDetails.jsx:99`, `ProfileSettings.jsx:23`. |
+| Direct cached Maven 3.9.16 `mvn test` with temporary JWT test secret and isolated Mongo URI | PASS on rerun: 2 tests, 0 failures, 0 errors, 0 skipped. `contextLoads` and `expiredTokenShouldBeRejected` passed. The first attempt failed because the required `GEMINI_API_KEY` environment placeholder was unset; the rerun used a fake process-local value. No paid AI request or invoice/user write was made. |
+| `GET http://localhost:8080/api/auth/me` without Authorization | PASS: HTTP 401. |
+| Same protected GET with a harmless malformed bearer token | PASS: HTTP 401. |
+| Frontend port check | Port 5173 was not listening, so login/upload/extraction/list flow was not run. |
+| Isolated invoice create with forged server-managed JSON fields | PASS after fix. Used a separate backend and disposable Mongo database, registered a throwaway account, and submitted forged ID, owner, status, validation, duplicate, source-document and timestamps. Response used a server ID/owner/timestamps and ignored the submitted server-managed values. The configured `invoiceiq` database was untouched. |
+| Isolated upload rejection cases | PASS. Empty file returned 400, unsupported bytes named `.pdf` returned 400, and a 10 MiB + 1 byte upload returned 413. Used a separate audit database and throwaway user; no OCR/AI call or valid invoice upload. |
+| Invoice validation/state API checks | PASS. Valid line-item invoice validated and confirmed; repeat confirmation returned 400; editing invalidated validation and reset status to `PENDING`; total mismatch was marked invalid and confirmation returned 400. Used separate audit database. |
+
+The repository Maven wrapper failed before starting Maven due to its PowerShell bootstrap error; the cached Maven 3.9.16 executable was used directly. The context test connected to the isolated `invoiceiq_audit_test` database name, not the configured `invoiceiq` database.
+
+### 14.3 Initial source-review findings
+
+* Invoice reads and updates reviewed use user-scoped repository queries. Analytics/dashboard and document download paths also derive identity from the security context or owner-scoped invoice lookup. Selected two-user routes were dynamically checked as recorded in `docs/testing/INVOICEIQ_TEST_RESULTS.md`.
+* **Fixed:** `InvoiceController.createInvoice` previously accepted the complete `Invoice` entity from JSON. The service reset owner and timestamps but retained caller-supplied ID, processing status, validation, duplicate result and source document. The controller now allowlists only user-editable invoice fields. The after-fix HTTP check passed in the disposable database; pre-fix behavior was established by source inspection and was not exercised against a database.
+* `InvoiceService.deleteInvoice` deletes the invoice record but has no source-file cleanup call. This is a static lifecycle finding requiring an isolated reproduction and retention-policy decision before any fix.
+* `application.properties` uses environment-backed JWT/Gemini settings. `JwtService` logs the decoded JWT key length at startup; no key value was printed.
+* `AIInsightsService` constructs provider requests from invoice numbers, vendor names, dates, categories, and financial fields. Provider disclosure/configuration needs an explicit deployment review. No provider call was made.
+* A local debug run emitted the login response object in Spring MVC debug logs. The test used a disposable JWT; check production logger levels and verify response-body log redaction.
+* Empty/unsupported/oversized upload responses were verified at runtime; valid-document OCR, cleanup after parser failure, MIME spoofing and safe storage behavior remain untested.
+* Invoice validation/state behavior was checked for valid totals, total mismatch, confirmation, repeated confirmation, and edit invalidation. Other numeric/date/line-item edge cases remain open.
+* No critical/high exploitable vulnerability was demonstrated in this first pass. Upload edge cases, OCR accuracy, business validation, two-user isolation, provider handling, and production configuration remain unverified.
+
+### 14.4 Current status and next task
+
+The previously listed frontend invoice-flow smoke test could not be performed because the frontend was not running. Selected authentication and User A/User B API scenarios were executed on a separate backend instance using `invoiceiq_audit_authz_20261023`; this did not use the configured `invoiceiq` data.
+
+**Current milestone:** Initial QA/security audit and evidence-based baseline — IN PROGRESS; one confirmed mass-assignment issue is fixed and after-fix behavior was checked.
+
+**Next task:** Add automated tests for the verified auth/ownership behavior once the test compile/classpath issue is resolved. Then test invoice deletion/file lifecycle with temporary storage, upload/OCR boundaries with harmless fixtures, and AI with mocked transport. Resolve the three frontend lint errors and complete the login/upload/extraction/list workflow when the frontend and deterministic test environment are available. Do not run write integration tests against the configured `invoiceiq` database.
+
+**Production readiness:** NOT READY for the full requested scope because lint fails and most functional/security test categories have not yet run.
+
+**Application change:** `InvoiceIQ_Backend/src/main/java/com/invoiceiq/InvoiceIQ/controller/InvoiceController.java` now copies only user-editable values on direct invoice creation. Maven tests passed after the change.
+
+
+
+## 15. Remaining Tests and Deep Audit — 2026-10-23
+
+Completed the user's follow-up brief as a read-only source/configuration and test-quality review. Existing uncommitted application changes were preserved; no application files, dependencies, or database contents were changed, and no OCR or external AI request was made.
+
+The audit reviewed authentication/JWT configuration, all invoice-owned routes, upload/storage/OCR/AI flow, validation, CRUD and duplicate state, analytics/dashboard/Expenses contracts, error handling, Mongo models/index annotations, frontend API/state handling, package/test scripts, Git ignore patterns and current working-tree changes. Git status reports JwtServiceTest.java as modified, but it has no content diff; it was preserved along with the existing InvoiceController fix. The existing two-test backend suite and prior HTTP checks were accepted only as already recorded in `INVOICEIQ_TEST_RESULTS.md`; they were not repeated.
+
+**New source-review findings:**
+
+* Duplicate detection canonicalizes lookup values while invoice mapping stores raw vendor and invoice-number values. Case/whitespace variants can miss an exact repository lookup.
+* Invoice edits clear validation/status but retain duplicate metadata and review decisions from the prior invoice contents.
+* The app requires `GEMINI_API_KEY` at startup through `application.properties`/`AIInsightsService`, despite extraction defaulting to disabled. The earlier missing-key context failure was recorded in the first audit.
+* Invoice list/detail/update endpoints serialize `Invoice` entities. Uploaded source paths are absolute and held in a serializable `SourceDocument.storageUrl` field.
+
+These are documented with severity, reproducible test proposals, expected/actual behavior, risks and remediation order in `docs/testing/INVOICEIQ_DEEP_AUDIT.md`. No fix was implemented because the pasted instructions require review and approval first. The report distinguishes source-confirmed behavior from runtime reproduction and from unverified risks.
+
+**Follow-up runtime tests:** None. The user requested no database-content changes until findings are reviewed. The full OCR/AI/browser regression still needs a disposable database, temporary upload root and deterministic mocked provider before it can run safely.
+
+**Current milestone:** Read-only deep audit complete; waiting on review of proposed remediation before any application changes. Production readiness remains NOT READY.

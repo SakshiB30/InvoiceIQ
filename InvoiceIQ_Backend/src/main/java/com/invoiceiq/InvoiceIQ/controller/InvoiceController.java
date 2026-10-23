@@ -66,8 +66,23 @@ public class InvoiceController {
     ) {
         String userId = securityUtil.getCurrentUserId();
 
+        // Accept only fields that users are allowed to set. Processing
+        // status, validation, duplicate state, document metadata, IDs and
+        // timestamps are managed by the server and must not be mass-assigned
+        // from the request body.
+        Invoice userEditableInvoice = new Invoice();
+        userEditableInvoice.setVendor(invoice.getVendor());
+        userEditableInvoice.setInvoiceNumber(invoice.getInvoiceNumber());
+        userEditableInvoice.setInvoiceDate(invoice.getInvoiceDate());
+        userEditableInvoice.setDueDate(invoice.getDueDate());
+        userEditableInvoice.setItems(invoice.getItems());
+        userEditableInvoice.setSubtotal(invoice.getSubtotal());
+        userEditableInvoice.setTax(invoice.getTax());
+        userEditableInvoice.setTotalAmount(invoice.getTotalAmount());
+        userEditableInvoice.setCategory(invoice.getCategory());
+
         Invoice savedInvoice =
-                invoiceService.createInvoice(invoice, userId);
+                invoiceService.createInvoice(userEditableInvoice, userId);
 
         return ResponseEntity.ok(savedInvoice);
     }

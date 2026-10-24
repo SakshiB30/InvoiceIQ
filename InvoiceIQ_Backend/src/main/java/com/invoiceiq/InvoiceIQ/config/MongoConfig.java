@@ -9,11 +9,14 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 @Configuration
 public class MongoConfig {
 
-    @Value("${spring.mongodb.database}")
+
+    @Value("${spring.mongodb.database:invoiceiq}")
     private String databaseName;
 
     @Bean
     public MongoTemplate mongoTemplate(MongoClient mongoClient) {
         return new MongoTemplate(mongoClient, databaseName);
     }
+
+
 }

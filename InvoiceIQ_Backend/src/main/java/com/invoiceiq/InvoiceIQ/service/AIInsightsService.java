@@ -29,7 +29,7 @@ public class AIInsightsService {
     @Value("${gemini.api.key}")
     private String apiKey;
 
-    @Value("${gemini.model}")
+    @Value("${gemini.model:gemini-3.5-flash-lite}")
     private String model;
 
     private RestClient restClient;

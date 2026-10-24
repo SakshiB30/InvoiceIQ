@@ -4,29 +4,29 @@ FROM maven:3.9-eclipse-temurin-25 AS build
 
 WORKDIR /app
 
-# Copy Maven configuration and source code
-
 COPY pom.xml .
 COPY src ./src
 
-# Build the executable Spring Boot JAR
-
 RUN mvn clean package -DskipTests
 
-# Stage 2: Run the application
+# Stage 2: Runtime with Java 25 and Tesseract OCR
 
 FROM eclipse-temurin:25-jre
 
-WORKDIR /app
+RUN apt-get update
+&& apt-get install -y --no-install-recommends tesseract-ocr
+&& rm -rf /var/lib/apt/lists/*
 
-# Copy the built JAR from the build stage
+WORKDIR /app
 
 COPY --from=build /app/target/*.jar app.jar
 
-# Render provides the PORT environment variable
+# Copy English OCR language data
+
+COPY tessdata/ /app/tessdata/
+
+ENV TESSDATA_PREFIX=/app/tessdata
 
 EXPOSE 8080
-
-# Start Spring Boot
 
 ENTRYPOINT ["java", "-jar", "app.jar"]

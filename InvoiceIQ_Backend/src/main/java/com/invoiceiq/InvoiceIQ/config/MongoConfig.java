@@ -9,7 +9,7 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 @Configuration
 public class MongoConfig {
 
-    @Value("${spring.data.mongodb.database}")
+    @Value("${spring.mongodb.database}")
     private String databaseName;
 
     @Bean

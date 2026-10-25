@@ -2,7 +2,6 @@ import { useNavigate } from 'react-router-dom'
 
 function ExpenseHeader() {
 const navigate = useNavigate()
-// The ExpenseHeader component renders the header section of the Expenses page, including the title, description, and "Add Expense" button. 
 return ( <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"> <div> <div className="flex items-center gap-3"> <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-indigo-400/20 bg-indigo-500/10 text-indigo-300"> <svg
            viewBox="0 0 24 24"
            fill="none"
@@ -63,4 +62,4 @@ return ( <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:just
 )
 }
 
-export default ExpenseHeader
+export default ExpenseHeader;

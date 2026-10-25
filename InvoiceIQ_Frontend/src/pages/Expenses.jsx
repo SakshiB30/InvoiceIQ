@@ -1,15 +1,17 @@
 import { useCallback, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 
-import ExpenseHeader from '../components/expenses/ExpenseHeader'
 import ExpenseSummary from '../components/expenses/ExpenseSummary'
 import ExpenseFilters from '../components/expenses/ExpenseFilters'
 import ExpenseTable from '../components/expenses/ExpenseTable'
+import ExpenseHeader from '../components/expenses/ExpenseHeader'
+
 
 import {
   fetchExpenses,
   setExpenseFilters,
 } from '../redux/slices/expenseSlice'
+import ExpenseHeader from '../components/expenses/expenseHeader'
 
 function Expenses() {
   const dispatch = useDispatch()
@@ -57,6 +59,7 @@ function Expenses() {
 
   return (
     <div className="space-y-6">
+      
       <ExpenseHeader />
 
       <ExpenseSummary />

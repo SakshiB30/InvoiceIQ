@@ -48,7 +48,7 @@ public class AIExtractionService {
     @Value("${gemini.model:gemini-3.5-flash-lite}")
     private String model;
 
-    @Value("${gemini.enabled:false}")
+    @Value("${gemini.enabled:true}")
     private boolean geminiEnabled;
 
     private RestClient restClient;

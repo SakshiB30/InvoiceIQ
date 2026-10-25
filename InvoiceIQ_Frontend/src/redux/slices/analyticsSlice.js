@@ -70,3 +70,4 @@ export const {
 } = analyticsSlice.actions;
 
 export default analyticsSlice.reducer;
+

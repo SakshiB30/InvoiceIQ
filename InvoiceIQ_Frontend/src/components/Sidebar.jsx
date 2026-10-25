@@ -6,7 +6,7 @@ import { logout } from '../redux/slices/authSlice'
 const menuItems = [
   {
     name: 'Dashboard',
-    path: '/',
+    path: '/dashboard',
     icon: '▦',
   },
   {

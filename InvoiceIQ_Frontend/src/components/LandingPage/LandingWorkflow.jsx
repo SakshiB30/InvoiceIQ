@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import Reveal from './Reveal'
-import SpotlightCard from './SpotlightCard'
+import SpotlightCard from './Spotlightcard'
 
 const steps = [
   {

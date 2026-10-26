@@ -1,4 +1,4 @@
-import useInView from './useInView'
+import useInView from './Useinview'
 
 // Fades and lifts content in when it enters the viewport.
 function Reveal({ as: Tag = 'div', delay = 0, className = '', style, children, ...rest }) {

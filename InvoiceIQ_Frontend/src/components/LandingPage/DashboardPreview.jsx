@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import useInView from './useInView'
+import useInView from './Useinview'
 
 // Counts from 0 to `end` once `active` becomes true.
 function useCountUp(end, active, duration = 1400) {

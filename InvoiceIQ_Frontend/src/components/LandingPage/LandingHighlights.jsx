@@ -1,5 +1,5 @@
 import Reveal from './Reveal'
-import SpotlightCard from './SpotlightCard'
+import SpotlightCard from './Spotlightcard'
 
 function LandingHighlights() {
   const highlights = [

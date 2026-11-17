@@ -23,6 +23,8 @@ public class Invoice {
 
     private Vendor vendor;
 
+    private String documentType;
+
     private String invoiceNumber;
 
     private LocalDate invoiceDate;
@@ -31,9 +33,9 @@ public class Invoice {
 
     private List<InvoiceItem> items;
 
-    private double subtotal;
+    private Double subtotal;
 
-    private double tax;
+    private Double tax;
 
     private double totalAmount;
 

@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate, useParams } from 'react-router-dom'
 
+import invoiceService from '../../services/invoiceService'
+
 import {
   clearSelectedInvoice,
   confirmInvoice,
@@ -36,6 +38,11 @@ const InvoiceDetails = ({ invoiceId: propInvoiceId, onClose }) => {
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [deleteError, setDeleteError] = useState('')
 
+  // Original document preview states
+  const [documentUrl, setDocumentUrl] = useState('')
+  const [documentLoading, setDocumentLoading] = useState(false)
+  const [documentError, setDocumentError] = useState('')
+
   const [editForm, setEditForm] = useState({
     invoiceNumber: '',
     vendorName: '',
@@ -63,6 +70,68 @@ const InvoiceDetails = ({ invoiceId: propInvoiceId, onClose }) => {
 
     setEditForm(createEditForm(selectedInvoice))
   }, [selectedInvoice])
+
+  // Fetch the original document through the authenticated backend API.
+  useEffect(() => {
+    const sourceDocument = selectedInvoice?.sourceDocument
+
+    if (!selectedInvoice?.id || !sourceDocument?.storageUrl) {
+      setDocumentUrl('')
+      setDocumentLoading(false)
+      setDocumentError('')
+      return
+    }
+
+    let isActive = true
+    let objectUrl = null
+
+    setDocumentUrl('')
+    setDocumentLoading(true)
+    setDocumentError('')
+
+    const loadDocument = async () => {
+      try {
+        const blob = await invoiceService.getInvoiceDocument(
+          selectedInvoice.id,
+        )
+
+        if (!blob || blob.size === 0) {
+          throw new Error('The original document is empty.')
+        }
+
+        objectUrl = URL.createObjectURL(blob)
+
+        if (isActive) {
+          setDocumentUrl(objectUrl)
+        } else {
+          URL.revokeObjectURL(objectUrl)
+        }
+      } catch (error) {
+        if (isActive) {
+          setDocumentError(
+            'Unable to load the original document. Please try again.',
+          )
+        }
+      } finally {
+        if (isActive) {
+          setDocumentLoading(false)
+        }
+      }
+    }
+
+    loadDocument()
+
+    return () => {
+      isActive = false
+
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl)
+      }
+    }
+  }, [
+    selectedInvoice?.id,
+    selectedInvoice?.sourceDocument?.storageUrl,
+  ])
 
   const handleEditChange = (event) => {
     const { name, value } = event.target
@@ -187,13 +256,15 @@ const InvoiceDetails = ({ invoiceId: propInvoiceId, onClose }) => {
       }
     }
 
+    // Preserve missing item values as null instead of converting them to zero.
     const cleanedItems = editForm.items.map((item) => ({
       description: item.description,
-      quantity: item.quantity === '' ? 0 : Number(item.quantity),
-      unitPrice: item.unitPrice === '' ? 0 : Number(item.unitPrice),
-      amount: item.amount === '' ? 0 : Number(item.amount),
+      quantity: item.quantity === '' ? null : Number(item.quantity),
+      unitPrice: item.unitPrice === '' ? null : Number(item.unitPrice),
+      amount: item.amount === '' ? null : Number(item.amount),
     }))
 
+    // Preserve missing subtotal and tax as null.
     const invoiceData = {
       ...selectedInvoice,
       invoiceNumber: editForm.invoiceNumber.trim(),
@@ -204,8 +275,8 @@ const InvoiceDetails = ({ invoiceId: propInvoiceId, onClose }) => {
       invoiceDate: editForm.invoiceDate,
       dueDate: editForm.dueDate || null,
       category: editForm.category || '',
-      subtotal: editForm.subtotal === '' ? 0 : Number(editForm.subtotal),
-      tax: editForm.tax === '' ? 0 : Number(editForm.tax),
+      subtotal: editForm.subtotal === '' ? null : Number(editForm.subtotal),
+      tax: editForm.tax === '' ? null : Number(editForm.tax),
       totalAmount: Number(editForm.totalAmount),
       items: cleanedItems,
     }
@@ -311,6 +382,7 @@ const InvoiceDetails = ({ invoiceId: propInvoiceId, onClose }) => {
   const sourceDocument = selectedInvoice?.sourceDocument
   const fileName = sourceDocument?.fileName || 'Original invoice'
   const fileType = sourceDocument?.fileType || ''
+
   const storageUrl = sourceDocument?.storageUrl || ''
 
   const normalizedFileType = fileType.toLowerCase()
@@ -339,6 +411,12 @@ const InvoiceDetails = ({ invoiceId: propInvoiceId, onClose }) => {
 
   const validationIssues =
     selectedInvoice?.validation?.missingFields || []
+
+  const validationWarnings =
+    selectedInvoice?.validation?.warnings || []
+
+  const totalVerificationPossible =
+    selectedInvoice?.validation?.totalVerificationPossible === true
 
   if (!invoiceId) return null
 
@@ -382,6 +460,7 @@ const InvoiceDetails = ({ invoiceId: propInvoiceId, onClose }) => {
     <div className="fixed inset-0 z-50 overflow-y-auto bg-[#080B14]/90 backdrop-blur-md">
       <div className="min-h-full p-3 sm:p-5 lg:p-8">
         <div className="mx-auto max-w-[1500px] overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0B0F19] shadow-2xl shadow-black/30">
+
           {/* Header */}
           <header className="border-b border-white/[0.08] bg-[#0F172A]/90 px-4 py-5 sm:px-6">
             <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
@@ -692,10 +771,14 @@ const InvoiceDetails = ({ invoiceId: propInvoiceId, onClose }) => {
                               {item.quantity ?? '-'}
                             </td>
                             <td className="px-5 py-4 text-sm text-slate-400">
-                              {formatCurrency(item.unitPrice)}
+                              {item.unitPrice == null
+                                ? 'Not provided'
+                                : formatCurrency(item.unitPrice)}
                             </td>
                             <td className="px-5 py-4 text-sm font-semibold text-slate-200">
-                              {formatCurrency(item.amount)}
+                              {item.amount == null
+                                ? 'Not provided'
+                                : formatCurrency(item.amount)}
                             </td>
                           </tr>
                         ))
@@ -787,6 +870,25 @@ const InvoiceDetails = ({ invoiceId: propInvoiceId, onClose }) => {
                 />
 
                 <div className="p-5">
+                  {validationWarnings.length > 0 && (
+                    <div className="mb-4 rounded-xl border border-amber-400/20 bg-amber-400/[0.05] p-4">
+                      <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-amber-300">
+                        Validation Warnings
+                      </p>
+
+                      <div className="space-y-2">
+                        {validationWarnings.map((warning, index) => (
+                          <p
+                            key={`${warning}-${index}`}
+                            className="text-sm leading-5 text-amber-200"
+                          >
+                            • {warning}
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {!hasValidation ? (
                     <div className="rounded-xl border border-dashed border-white/10 bg-white/[0.02] p-7 text-center">
                       <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-500/10 text-xl text-indigo-300">
@@ -822,9 +924,13 @@ const InvoiceDetails = ({ invoiceId: propInvoiceId, onClose }) => {
                       <div className="grid gap-3 sm:grid-cols-2">
                         <ValidationMetric
                           label="Expected Total"
-                          value={formatCurrency(
-                            selectedInvoice.validation.expectedTotal,
-                          )}
+                          value={
+                            totalVerificationPossible
+                              ? formatCurrency(
+                                  selectedInvoice.validation.expectedTotal,
+                                )
+                              : 'Not verified'
+                          }
                         />
                         <ValidationMetric
                           label="Extracted Total"
@@ -845,9 +951,13 @@ const InvoiceDetails = ({ invoiceId: propInvoiceId, onClose }) => {
                       <div className="grid gap-3 sm:grid-cols-3">
                         <ValidationMetric
                           label="Expected Total"
-                          value={formatCurrency(
-                            selectedInvoice.validation.expectedTotal,
-                          )}
+                          value={
+                            totalVerificationPossible
+                              ? formatCurrency(
+                                  selectedInvoice.validation.expectedTotal,
+                                )
+                              : 'Not verified'
+                          }
                         />
                         <ValidationMetric
                           label="Extracted Total"
@@ -858,11 +968,16 @@ const InvoiceDetails = ({ invoiceId: propInvoiceId, onClose }) => {
                         <ValidationMetric
                           label="Total Mismatch"
                           value={
-                            selectedInvoice.validation.totalMismatch
-                              ? 'Yes'
-                              : 'No'
+                            !totalVerificationPossible
+                              ? 'Not verified'
+                              : selectedInvoice.validation.totalMismatch
+                                ? 'Yes'
+                                : 'No'
                           }
-                          danger={selectedInvoice.validation.totalMismatch}
+                          danger={
+                            totalVerificationPossible &&
+                            selectedInvoice.validation.totalMismatch
+                          }
                         />
                       </div>
 
@@ -986,9 +1101,9 @@ const InvoiceDetails = ({ invoiceId: propInvoiceId, onClose }) => {
                     </p>
                   </div>
 
-                  {storageUrl && (
+                  {documentUrl && (
                     <a
-                      href={storageUrl}
+                      href={documentUrl}
                       target="_blank"
                       rel="noreferrer"
                       className="shrink-0 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs font-medium text-slate-300 transition hover:bg-white/[0.08] hover:text-white"
@@ -1023,12 +1138,30 @@ const InvoiceDetails = ({ invoiceId: propInvoiceId, onClose }) => {
                     <EmptyPreview
                       icon="↗"
                       title="Original document unavailable"
-                      description="No storage URL is available for this invoice."
+                      description="No original document is attached to this invoice."
+                    />
+                  ) : documentLoading ? (
+                    <EmptyPreview
+                      icon={<Spinner />}
+                      title="Loading original document..."
+                      description="Fetching your document securely."
+                    />
+                  ) : documentError ? (
+                    <EmptyPreview
+                      icon="!"
+                      title="Document could not be loaded"
+                      description={documentError}
+                    />
+                  ) : !documentUrl ? (
+                    <EmptyPreview
+                      icon="↗"
+                      title="Document unavailable"
+                      description="The document preview could not be generated."
                     />
                   ) : isPdf ? (
                     <div className="overflow-hidden rounded-xl border border-white/10 bg-[#151B2B]">
                       <iframe
-                        src={storageUrl}
+                        src={documentUrl}
                         title={fileName}
                         className="h-[650px] w-full"
                       />
@@ -1036,7 +1169,7 @@ const InvoiceDetails = ({ invoiceId: propInvoiceId, onClose }) => {
                   ) : isImage ? (
                     <div className="flex min-h-[350px] items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-[#151B2B] p-3 sm:min-h-[500px]">
                       <img
-                        src={storageUrl}
+                        src={documentUrl}
                         alt={fileName}
                         className="max-h-[700px] w-auto max-w-full object-contain"
                       />
@@ -1048,7 +1181,7 @@ const InvoiceDetails = ({ invoiceId: propInvoiceId, onClose }) => {
                       description="This file type cannot be previewed directly. Open the original document instead."
                     >
                       <a
-                        href={storageUrl}
+                        href={documentUrl}
                         target="_blank"
                         rel="noreferrer"
                         className="iq-primary-button mt-4"
@@ -1246,7 +1379,9 @@ function AmountField({
             highlighted ? 'text-indigo-300' : 'text-slate-100'
           }`}
         >
-          {formatCurrency(value)}
+          {value == null || value === ''
+            ? 'Not available'
+            : formatCurrency(value)}
         </p>
       )}
     </div>
@@ -1300,12 +1435,19 @@ function Notice({ tone, title, description }) {
 }
 
 function ErrorMessage({ message }) {
+  const readableMessage =
+    typeof message === 'string'
+      ? message
+      : message?.message ||
+        message?.error ||
+        'Something went wrong. Please try again.'
+
   return (
     <div
       role="alert"
       className="rounded-xl border border-rose-400/20 bg-rose-400/[0.06] p-4 text-sm text-rose-200"
     >
-      {message}
+      {readableMessage}
     </div>
   )
 }

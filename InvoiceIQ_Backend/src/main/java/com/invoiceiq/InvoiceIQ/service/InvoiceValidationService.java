@@ -3,10 +3,12 @@ package com.invoiceiq.InvoiceIQ.service;
 import com.invoiceiq.InvoiceIQ.dto.ExtractedInvoiceDTO;
 import com.invoiceiq.InvoiceIQ.dto.ExtractedInvoiceItemDTO;
 import com.invoiceiq.InvoiceIQ.entity.ValidationResult;
+
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.regex.Pattern;
 
 @Service
@@ -21,186 +23,125 @@ public class InvoiceValidationService {
     public ValidationResult validate(ExtractedInvoiceDTO invoice) {
 
         List<String> validationIssues = new ArrayList<>();
+        List<String> warnings = new ArrayList<>();
 
         if (invoice == null) {
-            validationIssues.add("Invoice data is missing");
+            validationIssues.add("Financial document data is missing");
 
-            return new ValidationResult(
-                    false,
-                    false,
-                    0.0,
-                    0.0,
-                    validationIssues
+            return createResult(
+                    false, false, 0.0, 0.0,
+                    false, validationIssues, warnings
             );
         }
 
-        // 1. Required fields
+        String documentType = invoice.getDocumentType() == null
+                ? "OTHER"
+                : invoice.getDocumentType().trim().toUpperCase(Locale.ROOT);
+
+        // 1. Document identification
 
         if (isBlank(invoice.getVendorName())) {
             validationIssues.add("Vendor name is missing");
         }
 
         if (isBlank(invoice.getInvoiceNumber())) {
-            validationIssues.add("Invoice number is missing");
+            warnings.add("Document or receipt number is missing");
         }
 
         if (invoice.getInvoiceDate() == null) {
-            validationIssues.add("Invoice date is missing");
+            warnings.add("Document date is missing");
         }
 
-        if (invoice.getSubtotal() == null) {
-            validationIssues.add("Subtotal is missing");
-        }
-
-        if (invoice.getTax() == null) {
-            validationIssues.add("Tax amount is missing");
-        }
-
-        if (invoice.getTotalAmount() == null) {
-            validationIssues.add("Total amount is missing");
-        }
-
-        // 2. Optional GSTIN format validation
+        // 2. GSTIN validation
 
         String gstin = invoice.getGstin();
 
         if (!isBlank(gstin)
                 && !GSTIN_PATTERN.matcher(
-                gstin.trim().toUpperCase()
+                gstin.trim().toUpperCase(Locale.ROOT)
         ).matches()) {
 
             validationIssues.add("GSTIN format is invalid");
         }
 
-        // 3. Numeric values
+        // 3. Read financial values
 
         Double subtotalValue = invoice.getSubtotal();
         Double taxValue = invoice.getTax();
         Double totalValue = invoice.getTotalAmount();
 
-        double subtotal = subtotalValue != null
-                && Double.isFinite(subtotalValue)
-                ? subtotalValue
-                : 0.0;
+        double subtotal = getSafeValue(subtotalValue);
+        double tax = getSafeValue(taxValue);
+        double extractedTotal = getSafeValue(totalValue);
 
-        double tax = taxValue != null
-                && Double.isFinite(taxValue)
-                ? taxValue
-                : 0.0;
+        validateFinancialValue(
+                subtotalValue, "Subtotal", validationIssues
+        );
 
-        double extractedTotal = totalValue != null
-                && Double.isFinite(totalValue)
-                ? totalValue
-                : 0.0;
+        validateFinancialValue(
+                taxValue, "Tax amount", validationIssues
+        );
 
-        if (subtotalValue != null) {
-            if (!Double.isFinite(subtotalValue)) {
-                validationIssues.add(
-                        "Subtotal must be a finite number"
-                );
-            } else if (subtotalValue < 0) {
-                validationIssues.add(
-                        "Subtotal cannot be negative"
-                );
-            }
-        }
+        validateFinancialValue(
+                totalValue, "Total amount", validationIssues
+        );
 
-        if (taxValue != null) {
-            if (!Double.isFinite(taxValue)) {
-                validationIssues.add(
-                        "Tax amount must be a finite number"
-                );
-            } else if (taxValue < 0) {
-                validationIssues.add(
-                        "Tax amount cannot be negative"
-                );
-            }
-        }
-
-        if (totalValue != null) {
-            if (!Double.isFinite(totalValue)) {
-                validationIssues.add(
-                        "Total amount must be a finite number"
-                );
-            } else if (totalValue < 0) {
-                validationIssues.add(
-                        "Total amount cannot be negative"
-                );
-            }
+        if (totalValue == null) {
+            validationIssues.add("Total amount is missing");
         }
 
         // 4. Date validation
 
         if (invoice.getInvoiceDate() != null
                 && invoice.getDueDate() != null
-                && invoice.getDueDate().isBefore(
-                invoice.getInvoiceDate()
-        )) {
+                && invoice.getDueDate().isBefore(invoice.getInvoiceDate())) {
 
             validationIssues.add(
-                    "Due date cannot be before invoice date"
+                    "Due date cannot be before document date"
             );
         }
 
-        // 5. Total calculation
+        // 5. Adaptive subtotal and tax validation
 
-        double expectedTotal = subtotal + tax;
-
-        boolean totalMismatch = false;
-
-        if (!Double.isFinite(expectedTotal)) {
-
-            validationIssues.add(
-                    "Calculated total exceeds the supported numeric range"
+        if (subtotalValue == null) {
+            warnings.add(
+                    "Subtotal is not separately available in this document"
             );
+        }
 
-        } else if (subtotalValue != null
-                && taxValue != null
-                && totalValue != null
-                && Double.isFinite(subtotalValue)
-                && Double.isFinite(taxValue)
-                && Double.isFinite(totalValue)) {
-
-            totalMismatch = Math.abs(
-                    expectedTotal - extractedTotal
-            ) > TOLERANCE;
-
-            if (totalMismatch) {
-                validationIssues.add(
-                        String.format(
-                                "Total mismatch: expected %.2f but extracted %.2f",
-                                expectedTotal,
-                                extractedTotal
-                        )
-                );
-            }
+        if (taxValue == null) {
+            warnings.add(
+                    "Tax amount is not separately available in this document"
+            );
         }
 
         // 6. Line-item validation
 
         List<ExtractedInvoiceItemDTO> items = invoice.getItems();
 
+        double calculatedItemTotal = 0.0;
+        boolean itemTotalReliable = items != null && !items.isEmpty();
+
         if (items == null || items.isEmpty()) {
 
-            validationIssues.add(
-                    "Invoice contains no line items"
+            warnings.add(
+                    "No individual line items were extracted"
             );
 
-        } else {
+            itemTotalReliable = false;
 
-            double calculatedSubtotal = 0.0;
-            boolean subtotalCalculationReliable = true;
+        } else {
 
             for (int i = 0; i < items.size(); i++) {
 
                 ExtractedInvoiceItemDTO item = items.get(i);
 
                 if (item == null) {
-                    validationIssues.add(
-                            "Invoice item " + (i + 1) + " is invalid"
+                    warnings.add(
+                            "Line item " + (i + 1) + " could not be interpreted"
                     );
 
-                    subtotalCalculationReliable = false;
+                    itemTotalReliable = false;
                     continue;
                 }
 
@@ -209,175 +150,303 @@ public class InvoiceValidationService {
                         : item.getDescription().trim();
 
                 if (isBlank(item.getDescription())) {
-                    validationIssues.add(
+                    warnings.add(
                             "Description is missing for " + itemName
                     );
+
+                    itemTotalReliable = false;
                 }
 
                 Double quantityValue = item.getQuantity();
                 Double unitPriceValue = item.getUnitPrice();
                 Double amountValue = item.getAmount();
 
+                // Quantity and unit price are optional.
+                // Many receipts contain only a description and amount.
+
                 if (quantityValue == null) {
-                    validationIssues.add(
-                            "Quantity is missing for " + itemName
+                    warnings.add(
+                            "Quantity is not available for " + itemName
                     );
                 }
 
                 if (unitPriceValue == null) {
-                    validationIssues.add(
-                            "Unit price is missing for " + itemName
+                    warnings.add(
+                            "Unit price is not available for " + itemName
                     );
                 }
 
                 if (amountValue == null) {
-                    validationIssues.add(
-                            "Amount is missing for " + itemName
+                    warnings.add(
+                            "Amount is not available for " + itemName
                     );
-                }
 
-                if (quantityValue == null
-                        || unitPriceValue == null
-                        || amountValue == null) {
-
-                    subtotalCalculationReliable = false;
+                    itemTotalReliable = false;
                     continue;
                 }
 
-                double quantity = quantityValue;
-                double unitPrice = unitPriceValue;
-                double amount = amountValue;
-
-                if (!Double.isFinite(quantity)) {
+                if (!Double.isFinite(amountValue)) {
                     validationIssues.add(
-                            "Quantity must be a finite number for "
-                                    + itemName
+                            "Item amount must be a finite number for " + itemName
                     );
 
-                    subtotalCalculationReliable = false;
+                    itemTotalReliable = false;
                     continue;
                 }
 
-                if (!Double.isFinite(unitPrice)) {
+                if (amountValue < 0) {
                     validationIssues.add(
-                            "Unit price must be a finite number for "
-                                    + itemName
+                            "Item amount cannot be negative for " + itemName
                     );
 
-                    subtotalCalculationReliable = false;
+                    itemTotalReliable = false;
                     continue;
                 }
 
-                if (!Double.isFinite(amount)) {
-                    validationIssues.add(
-                            "Item amount must be a finite number for "
-                                    + itemName
-                    );
+                // Validate quantity when provided.
 
-                    subtotalCalculationReliable = false;
-                    continue;
-                }
+                if (quantityValue != null) {
 
-                boolean itemValid = true;
-
-                if (quantity <= 0) {
-                    validationIssues.add(
-                            "Quantity must be greater than 0 for "
-                                    + itemName
-                    );
-
-                    itemValid = false;
-                }
-
-                if (unitPrice < 0) {
-                    validationIssues.add(
-                            "Unit price cannot be negative for "
-                                    + itemName
-                    );
-
-                    itemValid = false;
-                }
-
-                if (amount < 0) {
-                    validationIssues.add(
-                            "Item amount cannot be negative for "
-                                    + itemName
-                    );
-
-                    itemValid = false;
-                }
-
-                double expectedItemAmount = quantity * unitPrice;
-
-                if (!Double.isFinite(expectedItemAmount)) {
-
-                    validationIssues.add(
-                            "Calculated amount exceeds the supported numeric range for "
-                                    + itemName
-                    );
-
-                    subtotalCalculationReliable = false;
-                    continue;
-                }
-
-                if (Math.abs(expectedItemAmount - amount) > TOLERANCE) {
-                    validationIssues.add(
-                            String.format(
-                                    "Item amount mismatch for %s: expected %.2f but extracted %.2f",
-                                    itemName,
-                                    expectedItemAmount,
-                                    amount
-                            )
-                    );
-
-                    itemValid = false;
-                }
-
-                if (itemValid) {
-
-                    calculatedSubtotal += amount;
-
-                    if (!Double.isFinite(calculatedSubtotal)) {
+                    if (!Double.isFinite(quantityValue)
+                            || quantityValue <= 0) {
 
                         validationIssues.add(
-                                "Calculated line-item subtotal exceeds the supported numeric range"
+                                "Quantity must be a finite positive number for "
+                                        + itemName
                         );
 
-                        subtotalCalculationReliable = false;
-                        break;
+                        itemTotalReliable = false;
                     }
-                } else {
-                    subtotalCalculationReliable = false;
                 }
-            }
 
-            // Compare the sum of line items with the extracted subtotal.
+                // Validate unit price when provided.
 
-            if (subtotalCalculationReliable
-                    && subtotalValue != null
-                    && Double.isFinite(subtotalValue)
-                    && Math.abs(calculatedSubtotal - subtotal) > TOLERANCE) {
+                if (unitPriceValue != null) {
 
-                validationIssues.add(
-                        String.format(
-                                "Subtotal mismatch: line items total %.2f but extracted subtotal is %.2f",
-                                calculatedSubtotal,
-                                subtotal
-                        )
-                );
+                    if (!Double.isFinite(unitPriceValue)
+                            || unitPriceValue < 0) {
+
+                        validationIssues.add(
+                                "Unit price must be a finite non-negative number for "
+                                        + itemName
+                        );
+
+                        itemTotalReliable = false;
+                    }
+                }
+
+                // Check quantity × unit price only when both exist.
+
+                if (quantityValue != null && unitPriceValue != null
+                        && Double.isFinite(quantityValue)
+                        && Double.isFinite(unitPriceValue)
+                        && quantityValue > 0
+                        && unitPriceValue >= 0) {
+
+                    double expectedItemAmount =
+                            quantityValue * unitPriceValue;
+
+                    if (!Double.isFinite(expectedItemAmount)) {
+
+                        validationIssues.add(
+                                "Calculated amount exceeds the supported numeric range for "
+                                        + itemName
+                        );
+
+                        itemTotalReliable = false;
+
+                    } else if (Math.abs(
+                            expectedItemAmount - amountValue
+                    ) > TOLERANCE) {
+
+                        validationIssues.add(
+                                String.format(
+                                        "Item amount mismatch for %s: expected %.2f but extracted %.2f",
+                                        itemName,
+                                        expectedItemAmount,
+                                        amountValue
+                                )
+                        );
+
+                        itemTotalReliable = false;
+                    }
+                }
+
+                calculatedItemTotal += amountValue;
+
+                if (!Double.isFinite(calculatedItemTotal)) {
+
+                    validationIssues.add(
+                            "Calculated line-item total exceeds the supported numeric range"
+                    );
+
+                    itemTotalReliable = false;
+                    break;
+                }
             }
         }
 
-        // 7. Overall result
+        // 7. Validate line-item subtotal when subtotal exists.
+
+        if (subtotalValue != null
+                && Double.isFinite(subtotalValue)
+                && itemTotalReliable
+                && Math.abs(calculatedItemTotal - subtotal) > TOLERANCE) {
+
+            validationIssues.add(
+                    String.format(
+                            "Subtotal mismatch: line items total %.2f but extracted subtotal is %.2f",
+                            calculatedItemTotal,
+                            subtotal
+                    )
+            );
+        }
+
+        // 8. Calculate expected total where possible.
+
+        double expectedTotal = 0.0;
+        boolean totalVerificationPossible = false;
+        boolean totalMismatch = false;
+
+        if (subtotalValue != null
+                && taxValue != null
+                && Double.isFinite(subtotalValue)
+                && Double.isFinite(taxValue)
+                && subtotalValue >= 0
+                && taxValue >= 0) {
+
+            expectedTotal = subtotal + tax;
+
+            if (!Double.isFinite(expectedTotal)) {
+
+                validationIssues.add(
+                        "Calculated total exceeds the supported numeric range"
+                );
+
+            } else if (totalValue != null
+                    && Double.isFinite(totalValue)
+                    && totalValue >= 0) {
+
+                totalVerificationPossible = true;
+
+                totalMismatch = Math.abs(
+                        expectedTotal - extractedTotal
+                ) > TOLERANCE;
+
+                if (totalMismatch) {
+                    validationIssues.add(
+                            String.format(
+                                    "Total mismatch: expected %.2f but extracted %.2f",
+                                    expectedTotal,
+                                    extractedTotal
+                            )
+                    );
+                }
+            }
+
+        } else if (isReceiptType(documentType)
+                && itemTotalReliable
+                && totalValue != null
+                && Double.isFinite(totalValue)
+                && totalValue >= 0) {
+
+            // For receipts without subtotal/tax,
+            // compare actual line-item amounts with the paid total.
+
+            expectedTotal = calculatedItemTotal;
+            totalVerificationPossible = true;
+
+            totalMismatch = Math.abs(
+                    expectedTotal - extractedTotal
+            ) > TOLERANCE;
+
+            if (totalMismatch) {
+                validationIssues.add(
+                        String.format(
+                                "Receipt total mismatch: line items total %.2f but extracted total is %.2f",
+                                expectedTotal,
+                                extractedTotal
+                        )
+                );
+            }
+
+        } else {
+
+            warnings.add(
+                    "Total could not be independently verified using the available financial details"
+            );
+        }
+
+        // 9. Overall result
 
         boolean valid = validationIssues.isEmpty();
+
+        return createResult(
+                valid,
+                totalMismatch,
+                expectedTotal,
+                extractedTotal,
+                totalVerificationPossible,
+                validationIssues,
+                warnings
+        );
+    }
+
+    private boolean isReceiptType(String documentType) {
+
+        return switch (documentType) {
+            case "FEE_RECEIPT",
+                 "RETAIL_RECEIPT",
+                 "RESTAURANT_RECEIPT",
+                 "PAYMENT_RECEIPT" -> true;
+
+            default -> false;
+        };
+    }
+
+    private void validateFinancialValue(
+            Double value,
+            String fieldName,
+            List<String> issues
+    ) {
+
+        if (value == null) {
+            return;
+        }
+
+        if (!Double.isFinite(value)) {
+            issues.add(fieldName + " must be a finite number");
+
+        } else if (value < 0) {
+            issues.add(fieldName + " cannot be negative");
+        }
+    }
+
+    private double getSafeValue(Double value) {
+
+        return value != null && Double.isFinite(value)
+                ? value
+                : 0.0;
+    }
+
+    private ValidationResult createResult(
+            boolean valid,
+            boolean totalMismatch,
+            double expectedTotal,
+            double extractedTotal,
+            boolean totalVerificationPossible,
+            List<String> missingFields,
+            List<String> warnings
+    ) {
 
         return new ValidationResult(
                 valid,
                 totalMismatch,
-                Double.isFinite(expectedTotal) ? expectedTotal : 0.0,
+                expectedTotal,
                 extractedTotal,
-                validationIssues
+                missingFields,
+                warnings,
+                totalVerificationPossible
         );
     }
 

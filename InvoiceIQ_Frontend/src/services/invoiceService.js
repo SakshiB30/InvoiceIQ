@@ -39,6 +39,17 @@ const getInvoiceById = async (id) => {
   return response.data
 }
 
+const getInvoiceDocument = async (id) => {
+  const response = await axiosClient.get(
+    `/api/invoices/${id}/document`,
+    {
+      responseType: 'blob',
+    },
+  )
+
+  return response.data
+}
+
 const updateInvoice = async (id, invoiceData) => {
   const response = await axiosClient.put(
     `/api/invoices/${id}`,
@@ -84,6 +95,7 @@ const invoiceService = {
   uploadInvoice,
   getInvoices,
   getInvoiceById,
+  getInvoiceDocument,
   updateInvoice,
   revalidateInvoice,
   deleteInvoice,

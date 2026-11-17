@@ -29,4 +29,31 @@ public class ExtractedInvoiceDTO {
     private Double tax;
 
     private Double totalAmount;
+
+    // New field
+    private String documentType;
+
+    // Backward-compatible constructor
+    public ExtractedInvoiceDTO(
+            String vendorName,
+            String gstin,
+            String invoiceNumber,
+            LocalDate invoiceDate,
+            LocalDate dueDate,
+            List<ExtractedInvoiceItemDTO> items,
+            Double subtotal,
+            Double tax,
+            Double totalAmount
+    ) {
+        this.vendorName = vendorName;
+        this.gstin = gstin;
+        this.invoiceNumber = invoiceNumber;
+        this.invoiceDate = invoiceDate;
+        this.dueDate = dueDate;
+        this.items = items;
+        this.subtotal = subtotal;
+        this.tax = tax;
+        this.totalAmount = totalAmount;
+        this.documentType = "OTHER";
+    }
 }

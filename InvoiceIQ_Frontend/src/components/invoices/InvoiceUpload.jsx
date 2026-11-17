@@ -174,6 +174,14 @@ function InvoiceUpload({ onUploadSuccess }) {
   const [dragActive, setDragActive] = useState(false)
   const [fileError, setFileError] = useState('')
 
+  const validation = processingResult?.validation
+
+  const validationIssues = validation?.missingFields || []
+  const validationWarnings = validation?.warnings || []
+
+  const totalVerificationPossible =
+    validation?.totalVerificationPossible === true
+
   const handleFile = (file) => {
     if (!file) {
       return
@@ -314,13 +322,13 @@ function InvoiceUpload({ onUploadSuccess }) {
               </h2>
 
               <span className="rounded-full border border-indigo-400/20 bg-indigo-400/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-indigo-300">
-                AI powered
+                Smart document processing
               </span>
             </div>
 
             <p className="mt-3 text-sm leading-6 text-slate-400">
-              Upload an invoice and let InvoiceIQ extract, validate,
-              categorize, and analyze its information.
+              Upload an invoice or receipt and let InvoiceIQ extract,
+              validate, categorize, and analyze its information.
             </p>
           </div>
 
@@ -390,10 +398,10 @@ function InvoiceUpload({ onUploadSuccess }) {
 
             <h3 className="mt-5 text-sm font-semibold text-slate-100 sm:text-base">
               {uploadLoading
-                ? 'Processing your invoice...'
+                ? 'Processing your document...'
                 : dragActive
-                  ? 'Drop your invoice here'
-                  : 'Drag and drop your invoice here'}
+                  ? 'Drop your document here'
+                  : 'Drag and drop your invoice or receipt here'}
             </h3>
 
             {!uploadLoading && (
@@ -420,7 +428,7 @@ function InvoiceUpload({ onUploadSuccess }) {
             onChange={handleInputChange}
             disabled={uploadLoading}
             className="hidden"
-            aria-label="Choose an invoice file"
+            aria-label="Choose an invoice or receipt file"
           />
         </div>
 
@@ -478,7 +486,7 @@ function InvoiceUpload({ onUploadSuccess }) {
 
         {/* Backend upload error */}
         {uploadError && !uploadLoading && (
-          <Notice type="error" title="Invoice processing failed">
+          <Notice type="error" title="Document processing failed">
             <p className="break-words">
               {getReadableUploadError(uploadError)}
             </p>
@@ -501,7 +509,7 @@ function InvoiceUpload({ onUploadSuccess }) {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="text-sm font-semibold text-slate-100">
-                    AI is analyzing your invoice
+                    Processing your document
                   </p>
 
                   <span className="rounded-full border border-indigo-400/20 bg-indigo-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-indigo-300">
@@ -510,8 +518,9 @@ function InvoiceUpload({ onUploadSuccess }) {
                 </div>
 
                 <p className="mt-1 text-xs leading-5 text-slate-400">
-                  Extracting information and checking the invoice before
-                  saving it. Processing time depends on the document.
+                  Extracting available information and checking the
+                  document before saving it. Processing time depends
+                  on the document.
                 </p>
               </div>
             </div>
@@ -531,7 +540,7 @@ function InvoiceUpload({ onUploadSuccess }) {
 
                 <PipelineStep
                   number={2}
-                  title="AI extraction"
+                  title="Information extraction"
                   description="In progress"
                   state="active"
                 />
@@ -563,7 +572,7 @@ function InvoiceUpload({ onUploadSuccess }) {
             className="iq-primary-button flex w-full justify-center rounded-xl py-3.5 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
           >
             <span aria-hidden="true">✧</span>
-            Upload and analyze invoice
+            Upload and analyze document
             <span aria-hidden="true">→</span>
           </button>
         )}
@@ -571,8 +580,8 @@ function InvoiceUpload({ onUploadSuccess }) {
         {/* Processing result */}
         {processingResult && !uploadLoading && (
           <div className="space-y-4">
-            <Notice type="success" title="Invoice processed successfully">
-              InvoiceIQ has processed your invoice. Review the extracted
+            <Notice type="success" title="Document processed successfully">
+              InvoiceIQ has processed your document. Review the extracted
               information and validation results before confirming it.
             </Notice>
 
@@ -599,7 +608,9 @@ function InvoiceUpload({ onUploadSuccess }) {
                       <p className="mt-1 text-xs text-slate-400">
                         {processingResult.validation.valid === false
                           ? 'Requires review'
-                          : 'Completed successfully'}
+                          : validationWarnings.length > 0
+                            ? 'Passed with warnings'
+                            : 'Validation passed'}
                       </p>
                     </div>
                   </div>
@@ -638,34 +649,61 @@ function InvoiceUpload({ onUploadSuccess }) {
             {/* Duplicate warning */}
             {processingResult.duplicate?.potentialDuplicate === true && (
               <Notice type="warning" title="Possible duplicate detected">
-                A similar invoice may already exist. Review the invoice
+                A similar document may already exist. Review the document
                 details before confirming it.
               </Notice>
             )}
 
-            {/* Validation warning */}
-            {processingResult.validation?.valid === false && (
-              <Notice type="warning" title="Validation requires review">
-                {processingResult.validation.missingFields?.length > 0 ? (
-                  <ul className="list-disc space-y-1 pl-5">
-                    {processingResult.validation.missingFields.map(
-                      (issue, index) => (
-                        <li key={`${issue}-${index}`}>{issue}</li>
-                      ),
+            {/* Validation issues and warnings */}
+            {validation && (
+              <div className="space-y-3">
+                {/* Validation issues */}
+                {validation.valid === false && (
+                  <Notice type="warning" title="Validation requires review">
+                    {validationIssues.length > 0 ? (
+                      <ul className="list-disc space-y-1 pl-5">
+                        {validationIssues.map((issue, index) => (
+                          <li key={`${issue}-${index}`}>{issue}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p>
+                        Please review the extracted information before
+                        confirming this document.
+                      </p>
                     )}
-                  </ul>
-                ) : (
-                  <p>
-                    Please review the invoice details and resolve any
-                    validation issues before confirming the invoice.
-                  </p>
+                  </Notice>
                 )}
-              </Notice>
+
+                {/* Non-blocking warnings */}
+                {validationWarnings.length > 0 && (
+                  <Notice type="warning" title="Additional information">
+                    <ul className="list-disc space-y-1 pl-5">
+                      {validationWarnings.map((warning, index) => (
+                        <li key={`${warning}-${index}`}>{warning}</li>
+                      ))}
+                    </ul>
+                  </Notice>
+                )}
+
+                {/* Total verification status */}
+                <div className="rounded-xl border border-[#263148] bg-[#0F172A]/60 p-4">
+                  <p className="text-xs font-semibold text-slate-200">
+                    Total verification
+                  </p>
+
+                  <p className="mt-1 text-xs text-slate-400">
+                    {totalVerificationPossible
+                      ? 'The extracted total could be independently verified.'
+                      : 'The total could not be independently verified from the available document information.'}
+                  </p>
+                </div>
+              </div>
             )}
 
             <p className="text-xs leading-5 text-slate-500">
-              You can review the extracted invoice details before confirming
-              the invoice.
+              You can review the extracted document details before
+              confirming the document.
             </p>
           </div>
         )}

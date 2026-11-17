@@ -200,6 +200,11 @@ public class InvoiceService {
 
             for (InvoiceItem item : invoice.getItems()) {
 
+                if (item == null) {
+                    extractedItems.add(null);
+                    continue;
+                }
+
                 ExtractedInvoiceItemDTO extractedItem =
                         new ExtractedInvoiceItemDTO();
 
@@ -214,6 +219,8 @@ public class InvoiceService {
 
         ExtractedInvoiceDTO extractedInvoice =
                 new ExtractedInvoiceDTO();
+
+        extractedInvoice.setDocumentType(invoice.getDocumentType());
 
         if (invoice.getVendor() != null) {
             extractedInvoice.setVendorName(invoice.getVendor().getName());

@@ -11,9 +11,9 @@ public class InvoiceItem {
 
     private String description;
 
-    private double quantity;
+    private Double quantity;
 
-    private double unitPrice;
+    private Double unitPrice;
 
-    private double amount;
+    private Double amount;
 }
